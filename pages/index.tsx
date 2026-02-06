@@ -86,6 +86,7 @@ export default function Home() {
         <div style={{ fontWeight: 'bold', fontSize: '16px' }}>Match 78 - Round of 32</div>
         <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>June 30, 2026 • 3:00 PM CT</div>
         <div style={{ fontSize: '14px', color: '#666' }}>Group E Runner-up vs Group I Runner-up</div>
+        <div style={{ fontSize: '14px', color: '#666' }}>AT&T Stadium, Arlington, TX</div>
       </div>
 
       <button
