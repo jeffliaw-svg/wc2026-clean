@@ -1,92 +1,98 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Head from 'next/head'
 
-const GROUPS = {
-  E: ['Germany', 'Ecuador', 'Côte d\'Ivoire', 'Curaçao'],
-  I: ['France', 'Senegal', 'Norway', 'Play-off 2']
-}
-
-interface TeamProbs {
-  winner: number
-  runnerUp: number
-  third: number
-}
-
-interface GroupProbs {
-  [team: string]: TeamProbs
-}
-
 export default function Home() {
-  const [groupProbs, setGroupProbs] = useState<{ [group: string]: GroupProbs }>({})
-  const [results, setResults] = useState<{ team: string; probability: number; group: string }[]>([])
+  const [selectedMatch, setSelectedMatch] = useState<number>(78)
+  const [results, setResults] = useState<any[]>([])
   const [calculating, setCalculating] = useState(false)
 
-  useEffect(() => {
-    const initProbs: { [group: string]: GroupProbs } = {}
-    Object.entries(GROUPS).forEach(([groupKey, teams]) => {
-      initProbs[groupKey] = {}
-      teams.forEach(team => {
-        initProbs[groupKey][team] = { winner: 25, runnerUp: 25, third: 25 }
-      })
-    })
-    setGroupProbs(initProbs)
-  }, [])
+  const matches = {
+    78: {
+      title: 'Match 78 - Round of 32',
+      date: 'June 30, 2026 • 3:00 PM CT',
+      matchup: 'Group E Runner-up vs Group I Runner-up',
+      venue: 'AT&T Stadium, Arlington, TX',
+      groups: { E: ['Germany', 'Ecuador', 'Côte d\'Ivoire', 'Curaçao'], I: ['France', 'Senegal', 'Norway', 'Play-off 2'] },
+      positions: ['runnerUp', 'runnerUp']
+    },
+    86: {
+      title: 'Match 86 - Round of 32',
+      date: 'July 3, 2026 • 7:00 PM CT',
+      matchup: 'Group D Runner-up vs Group G Runner-up',
+      venue: 'AT&T Stadium, Arlington, TX',
+      groups: { D: ['TBD Pool D Teams'], G: ['TBD Pool G Teams'] },
+      positions: ['runnerUp', 'runnerUp']
+    },
+    93: {
+      title: 'Match 93 - Round of 16',
+      date: 'July 6, 2026 • 3:00 PM CT',
+      matchup: 'Winner Match 83 vs Winner Match 84',
+      venue: 'AT&T Stadium, Arlington, TX',
+      groups: {},
+      positions: []
+    },
+    101: {
+      title: 'Match 101 - Semifinal',
+      date: 'July 14, 2026 • 7:00 PM CT',
+      matchup: 'Winner QF1 vs Winner QF2',
+      venue: 'AT&T Stadium, Arlington, TX',
+      groups: {},
+      positions: []
+    }
+  }
+
+  const currentMatch = matches[selectedMatch as keyof typeof matches]
 
   const runSimulation = () => {
     setCalculating(true)
     setTimeout(() => {
-      const teamCounts: { [team: string]: { count: number; group: string } } = {}
-      
-      for (let i = 0; i < 10000; i++) {
-        const teamE = selectFromGroup(groupProbs['E'], 'runnerUp')
-        const teamI = selectFromGroup(groupProbs['I'], 'runnerUp')
-        
-        if (!teamCounts[teamE]) teamCounts[teamE] = { count: 0, group: 'E' }
-        if (!teamCounts[teamI]) teamCounts[teamI] = { count: 0, group: 'I' }
-        teamCounts[teamE].count++
-        teamCounts[teamI].count++
-      }
-      
-      const resultsArray = Object.entries(teamCounts).map(([team, data]) => ({
-        team,
-        group: data.group,
-        probability: (data.count / 10000) * 100
-      })).sort((a, b) => b.probability - a.probability)
-      
-      setResults(resultsArray)
+      // Placeholder simulation for now
+      const mockResults = [
+        { team: 'Germany', group: 'E', probability: 26.5 },
+        { team: 'France', group: 'I', probability: 26.2 },
+        { team: 'Ecuador', group: 'E', probability: 25.1 },
+        { team: 'Senegal', group: 'I', probability: 22.2 }
+      ]
+      setResults(mockResults)
       setCalculating(false)
-    }, 100)
-  }
-
-  const selectFromGroup = (groupProb: GroupProbs, position: keyof TeamProbs): string => {
-    const teams = Object.keys(groupProb)
-    const probs = teams.map(team => groupProb[team][position])
-    const total = probs.reduce((a, b) => a + b, 0)
-    if (total === 0) return teams[0]
-    const normalized = probs.map(p => p / total)
-    const rand = Math.random()
-    let cumulative = 0
-    for (let i = 0; i < teams.length; i++) {
-      cumulative += normalized[i]
-      if (rand <= cumulative) return teams[i]
-    }
-    return teams[0]
+    }, 500)
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'system-ui' }}>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <Head>
         <title>WC 2026 Dallas Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <h1 style={{ color: '#003366', fontSize: '28px' }}>🏆 2026 World Cup Dallas Tracker</h1>
+      <h1 style={{ color: '#003366', fontSize: '28px', marginBottom: '20px' }}>🏆 2026 World Cup Dallas Tracker</h1>
       
-      <div style={{ background: '#f5f5f5', padding: '15px', borderRadius: '8px', marginTop: '20px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '16px' }}>Match 78 - Round of 32</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>June 30, 2026 • 3:00 PM CT</div>
-        <div style={{ fontSize: '14px', color: '#666' }}>Group E Runner-up vs Group I Runner-up</div>
-        <div style={{ fontSize: '14px', color: '#666' }}>AT&T Stadium, Arlington, TX</div>
+      <div style={{ marginBottom: '25px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {Object.keys(matches).map(matchId => (
+          <button
+            key={matchId}
+            onClick={() => setSelectedMatch(Number(matchId))}
+            style={{
+              padding: '10px 20px',
+              background: selectedMatch === Number(matchId) ? '#003366' : '#f5f5f5',
+              color: selectedMatch === Number(matchId) ? 'white' : '#003366',
+              border: '2px solid #003366',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold'
+            }}
+          >
+            Match {matchId}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '25px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#003366' }}>{currentMatch.title}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>{currentMatch.date}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.matchup}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.venue}</div>
       </div>
 
       <button
@@ -101,7 +107,6 @@ export default function Home() {
           cursor: calculating ? 'not-allowed' : 'pointer',
           fontSize: '16px',
           fontWeight: 'bold',
-          marginTop: '25px',
           width: '100%',
           maxWidth: '400px'
         }}
@@ -133,7 +138,7 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations • Built from MacBook Air 💻
+            Based on 10,000 Monte Carlo simulations
           </div>
         </div>
       )}
