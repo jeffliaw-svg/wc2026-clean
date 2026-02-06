@@ -1,5 +1,5 @@
 {
-  "name": "wc2026-dallas-tracker",
+  "name": "wc2026-clean",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,11 +10,13 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "next": "^14.0.0"
+    "next": "^14.0.0",
+    "papaparse": "^5.4.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
+    "@types/papaparse": "^5.3.14",
     "typescript": "^5.0.0"
   }
 }
