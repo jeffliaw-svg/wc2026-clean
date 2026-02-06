@@ -54,35 +54,35 @@ export default function Home() {
       
       if (selectedMatch === 78) {
         const groupETeams = [
-          { name: 'Germany', rating: ratings['Germany'] || 85 },
-          { name: 'Ecuador', rating: ratings['Ecuador'] || 75 },
-          { name: 'Côte d\'Ivoire', rating: ratings['Côte d\'Ivoire'] || 72 },
-          { name: 'Curaçao', rating: ratings['Curaçao'] || 65 }
+          { name: 'Germany', rating: ratings['Germany'] || 85.7 },
+          { name: 'Ecuador', rating: ratings['Ecuador'] || 69.7 },
+          { name: 'Côte d\'Ivoire', rating: ratings['Côte d\'Ivoire'] || 66.1 },
+          { name: 'Curaçao', rating: ratings['Curaçao'] || 58.2 }
         ]
         
         const groupITeams = [
-          { name: 'France', rating: ratings['France'] || 89 },
-          { name: 'Senegal', rating: ratings['Senegal'] || 78 },
-          { name: 'Norway', rating: ratings['Norway'] || 76 },
-          { name: 'TBD Playoff', rating: ratings['Play-off 2'] || 70 }
+          { name: 'France', rating: ratings['France'] || 89.4 },
+          { name: 'Senegal', rating: ratings['Senegal'] || 72.4 },
+          { name: 'Norway', rating: ratings['Norway'] || 67.3 },
+          { name: 'TBD Playoff', rating: ratings['Play-off 2'] || 60.0 }
         ]
         
         const iterations = 10000
         const teamCounts: { [key: string]: { count: number, group: string } } = {}
         
         for (let i = 0; i < iterations; i++) {
-          const eRunnerUp = selectRunnerUp(groupETeams)
-          const iRunnerUp = selectRunnerUp(groupITeams)
+          const eRunnerUp = simulateGroup(groupETeams)
+          const iRunnerUp = simulateGroup(groupITeams)
           
-          if (!teamCounts[eRunnerUp.name]) {
-            teamCounts[eRunnerUp.name] = { count: 0, group: 'E' }
+          if (!teamCounts[eRunnerUp]) {
+            teamCounts[eRunnerUp] = { count: 0, group: 'E' }
           }
-          if (!teamCounts[iRunnerUp.name]) {
-            teamCounts[iRunnerUp.name] = { count: 0, group: 'I' }
+          if (!teamCounts[iRunnerUp]) {
+            teamCounts[iRunnerUp] = { count: 0, group: 'I' }
           }
           
-          teamCounts[eRunnerUp.name].count++
-          teamCounts[iRunnerUp.name].count++
+          teamCounts[eRunnerUp].count++
+          teamCounts[iRunnerUp].count++
         }
         
         const resultsArray = Object.entries(teamCounts).map(([team, data]) => ({
@@ -106,23 +106,52 @@ export default function Home() {
     setCalculating(false)
   }
 
-  const selectRunnerUp = (teams: { name: string, rating: number }[]) => {
-    // Square the ratings to create bigger spreads between strong and weak teams
-    const squaredRatings = teams.map(t => t.rating * t.rating)
-    const totalRating = squaredRatings.reduce((sum, r) => sum + r, 0)
-    const probs = squaredRatings.map(r => r / totalRating)
+  // Simulate entire group stage and return runner-up
+  const simulateGroup = (teams: { name: string, rating: number }[]): string => {
+    const standings = teams.map(t => ({ name: t.name, rating: t.rating, points: 0, gd: 0 }))
     
-    const rand = Math.random()
-    let cumulative = 0
-    
+    // Simulate all 6 matches (round-robin)
     for (let i = 0; i < teams.length; i++) {
-      cumulative += probs[i]
-      if (rand <= cumulative) {
-        return teams[i]
+      for (let j = i + 1; j < teams.length; j++) {
+        const result = simulateMatch(standings[i].rating, standings[j].rating)
+        
+        if (result === 'home') {
+          standings[i].points += 3
+          standings[i].gd += 1
+          standings[j].gd -= 1
+        } else if (result === 'away') {
+          standings[j].points += 3
+          standings[j].gd += 1
+          standings[i].gd -= 1
+        } else {
+          standings[i].points += 1
+          standings[j].points += 1
+        }
       }
     }
     
-    return teams[0]
+    // Sort by points, then goal difference
+    standings.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points
+      return b.gd - a.gd
+    })
+    
+    // Return runner-up (2nd place)
+    return standings[1].name
+  }
+
+  // Simulate single match using ELO-based probability
+  const simulateMatch = (ratingA: number, ratingB: number): 'home' | 'away' | 'draw' => {
+    // ELO win probability formula
+    const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400))
+    
+    const rand = Math.random()
+    
+    // 25% draw probability, rest split by expected score
+    if (rand < 0.25) return 'draw'
+    
+    const adjustedRand = (rand - 0.25) / 0.75
+    return adjustedRand < expectedA ? 'home' : 'away'
   }
 
   return (
@@ -158,60 +187,4 @@ export default function Home() {
         ))}
       </div>
 
-      <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '25px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#003366' }}>{currentMatch.title}</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>{currentMatch.date}</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.matchup}</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.venue}</div>
-      </div>
-
-      <button
-        onClick={runSimulation}
-        disabled={calculating}
-        style={{
-          padding: '15px 30px',
-          background: calculating ? '#ccc' : '#003366',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: calculating ? 'not-allowed' : 'pointer',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          width: '100%',
-          maxWidth: '400px'
-        }}
-      >
-        {calculating ? '⚽ Calculating...' : '▶️ Run Simulation (10,000 iterations)'}
-      </button>
-
-      {results.length > 0 && (
-        <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366' }}>Results:</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
-            <thead>
-              <tr style={{ background: '#003366', color: 'white' }}>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Team</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Group</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Probability</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{r.team}</td>
-                  <td style={{ padding: '12px' }}>Group {r.group}</td>
-                  <td style={{ padding: '12px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '16px' }}>
-                    {r.probability.toFixed(1)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations using team strength ratings
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+      <div style=
