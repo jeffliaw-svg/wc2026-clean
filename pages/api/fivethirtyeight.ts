@@ -2,8 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
+    // Try the GitHub repo version instead
     const response = await fetch(
-      'https://projects.fivethirtyeight.com/soccer-api/international/spi_global_rankings.csv'
+      'https://raw.githubusercontent.com/fivethirtyeight/data/master/soccer-spi/spi_global_rankings.csv'
     )
     
     const csvText = await response.text()
