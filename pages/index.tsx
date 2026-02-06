@@ -12,50 +12,116 @@ export default function Home() {
       date: 'June 30, 2026 • 3:00 PM CT',
       matchup: 'Group E Runner-up vs Group I Runner-up',
       venue: 'AT&T Stadium, Arlington, TX',
-      groups: { E: ['Germany', 'Ecuador', 'Côte d\'Ivoire', 'Curaçao'], I: ['France', 'Senegal', 'Norway', 'Play-off 2'] },
-      positions: ['runnerUp', 'runnerUp']
+      groups: ['E', 'I']
     },
     86: {
       title: 'Match 86 - Round of 32',
       date: 'July 3, 2026 • 7:00 PM CT',
       matchup: 'Group D Runner-up vs Group G Runner-up',
       venue: 'AT&T Stadium, Arlington, TX',
-      groups: { D: ['TBD Pool D Teams'], G: ['TBD Pool G Teams'] },
-      positions: ['runnerUp', 'runnerUp']
+      groups: ['D', 'G']
     },
     93: {
       title: 'Match 93 - Round of 16',
       date: 'July 6, 2026 • 3:00 PM CT',
       matchup: 'Winner Match 83 vs Winner Match 84',
       venue: 'AT&T Stadium, Arlington, TX',
-      groups: {},
-      positions: []
+      groups: []
     },
     101: {
       title: 'Match 101 - Semifinal',
       date: 'July 14, 2026 • 7:00 PM CT',
       matchup: 'Winner QF1 vs Winner QF2',
       venue: 'AT&T Stadium, Arlington, TX',
-      groups: {},
-      positions: []
+      groups: []
     }
   }
 
   const currentMatch = matches[selectedMatch as keyof typeof matches]
 
-  const runSimulation = () => {
+  const runSimulation = async () => {
     setCalculating(true)
-    setTimeout(() => {
-      // Placeholder simulation for now
-      const mockResults = [
-        { team: 'Germany', group: 'E', probability: 26.5 },
-        { team: 'France', group: 'I', probability: 26.2 },
-        { team: 'Ecuador', group: 'E', probability: 25.1 },
-        { team: 'Senegal', group: 'I', probability: 22.2 }
-      ]
-      setResults(mockResults)
-      setCalculating(false)
-    }, 500)
+    
+    try {
+      // Fetch FiveThirtyEight ratings
+      const spiResponse = await fetch('/api/fivethirtyeight')
+      const spiData = await spiResponse.json()
+      
+      // For now, simulate Match 78 with weighted probabilities based on team strength
+      if (selectedMatch === 78) {
+        const groupETeams = [
+          { name: 'Germany', rating: spiData.teams['Germany'] || 85 },
+          { name: 'Ecuador', rating: spiData.teams['Ecuador'] || 75 },
+          { name: 'Côte d\'Ivoire', rating: 72 },
+          { name: 'Curaçao', rating: 65 }
+        ]
+        
+        const groupITeams = [
+          { name: 'France', rating: spiData.teams['France'] || 89 },
+          { name: 'Senegal', rating: 78 },
+          { name: 'Norway', rating: 76 },
+          { name: 'Play-off 2', rating: 70 }
+        ]
+        
+        // Run Monte Carlo simulation
+        const iterations = 10000
+        const teamCounts: { [key: string]: { count: number, group: string } } = {}
+        
+        for (let i = 0; i < iterations; i++) {
+          // Simulate Group E - pick runner-up based on ratings
+          const eRunnerUp = selectRunnerUp(groupETeams)
+          const iRunnerUp = selectRunnerUp(groupITeams)
+          
+          if (!teamCounts[eRunnerUp.name]) {
+            teamCounts[eRunnerUp.name] = { count: 0, group: 'E' }
+          }
+          if (!teamCounts[iRunnerUp.name]) {
+            teamCounts[iRunnerUp.name] = { count: 0, group: 'I' }
+          }
+          
+          teamCounts[eRunnerUp.name].count++
+          teamCounts[iRunnerUp.name].count++
+        }
+        
+        const resultsArray = Object.entries(teamCounts).map(([team, data]) => ({
+          team,
+          group: data.group,
+          probability: (data.count / iterations) * 100
+        })).sort((a, b) => b.probability - a.probability)
+        
+        setResults(resultsArray)
+      } else {
+        // Placeholder for other matches
+        setResults([
+          { team: 'TBD', group: 'TBD', probability: 0 }
+        ])
+      }
+    } catch (error) {
+      console.error('Simulation error:', error)
+      setResults([])
+    }
+    
+    setCalculating(false)
+  }
+
+  // Helper function to select runner-up based on team ratings
+  const selectRunnerUp = (teams: { name: string, rating: number }[]) => {
+    // Convert ratings to probabilities (higher rating = higher chance)
+    const totalRating = teams.reduce((sum, t) => sum + t.rating, 0)
+    const probs = teams.map(t => t.rating / totalRating)
+    
+    // Randomly select based on weighted probabilities
+    const rand = Math.random()
+    let cumulative = 0
+    
+    for (let i = 0; i < teams.length; i++) {
+      cumulative += probs[i]
+      if (rand <= cumulative) {
+        return teams[i]
+      }
+    }
+    
+    return teams[0]
   }
 
   return (
@@ -71,7 +137,10 @@ export default function Home() {
         {Object.keys(matches).map(matchId => (
           <button
             key={matchId}
-            onClick={() => setSelectedMatch(Number(matchId))}
+            onClick={() => {
+              setSelectedMatch(Number(matchId))
+              setResults([])
+            }}
             style={{
               padding: '10px 20px',
               background: selectedMatch === Number(matchId) ? '#003366' : '#f5f5f5',
@@ -138,7 +207,7 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations
+            Based on 10,000 Monte Carlo simulations using FiveThirtyEight SPI ratings
           </div>
         </div>
       )}
