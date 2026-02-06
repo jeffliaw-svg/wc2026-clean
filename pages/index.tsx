@@ -43,32 +43,34 @@ export default function Home() {
     setCalculating(true)
     
     try {
-      // Fetch FiveThirtyEight ratings
       const spiResponse = await fetch('/api/fivethirtyeight')
       const spiData = await spiResponse.json()
       
-      // For now, simulate Match 78 with weighted probabilities based on team strength
+      if (!spiData.success || !spiData.teams) {
+        throw new Error('Failed to fetch team ratings')
+      }
+      
+      const ratings = spiData.teams
+      
       if (selectedMatch === 78) {
         const groupETeams = [
-          { name: 'Germany', rating: spiData.teams['Germany'] || 85 },
-          { name: 'Ecuador', rating: spiData.teams['Ecuador'] || 75 },
-          { name: 'Côte d\'Ivoire', rating: 72 },
-          { name: 'Curaçao', rating: 65 }
+          { name: 'Germany', rating: ratings['Germany'] || 85 },
+          { name: 'Ecuador', rating: ratings['Ecuador'] || 75 },
+          { name: 'Côte d\'Ivoire', rating: ratings['Côte d\'Ivoire'] || 72 },
+          { name: 'Curaçao', rating: ratings['Curaçao'] || 65 }
         ]
         
         const groupITeams = [
-          { name: 'France', rating: spiData.teams['France'] || 89 },
-          { name: 'Senegal', rating: 78 },
-          { name: 'Norway', rating: 76 },
-          { name: 'Play-off 2', rating: 70 }
+          { name: 'France', rating: ratings['France'] || 89 },
+          { name: 'Senegal', rating: ratings['Senegal'] || 78 },
+          { name: 'Norway', rating: ratings['Norway'] || 76 },
+          { name: 'Play-off 2', rating: ratings['Play-off 2'] || 70 }
         ]
         
-        // Run Monte Carlo simulation
         const iterations = 10000
         const teamCounts: { [key: string]: { count: number, group: string } } = {}
         
         for (let i = 0; i < iterations; i++) {
-          // Simulate Group E - pick runner-up based on ratings
           const eRunnerUp = selectRunnerUp(groupETeams)
           const iRunnerUp = selectRunnerUp(groupITeams)
           
@@ -91,26 +93,23 @@ export default function Home() {
         
         setResults(resultsArray)
       } else {
-        // Placeholder for other matches
         setResults([
-          { team: 'TBD', group: 'TBD', probability: 0 }
+          { team: 'TBD - Full tournament simulation coming soon', group: 'TBD', probability: 0 }
         ])
       }
     } catch (error) {
       console.error('Simulation error:', error)
+      alert('Error running simulation. Check console for details.')
       setResults([])
     }
     
     setCalculating(false)
   }
 
-  // Helper function to select runner-up based on team ratings
   const selectRunnerUp = (teams: { name: string, rating: number }[]) => {
-    // Convert ratings to probabilities (higher rating = higher chance)
     const totalRating = teams.reduce((sum, t) => sum + t.rating, 0)
     const probs = teams.map(t => t.rating / totalRating)
     
-    // Randomly select based on weighted probabilities
     const rand = Math.random()
     let cumulative = 0
     
@@ -207,7 +206,7 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations using FiveThirtyEight SPI ratings
+            Based on 10,000 Monte Carlo simulations using team strength ratings
           </div>
         </div>
       )}
