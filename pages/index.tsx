@@ -187,4 +187,60 @@ export default function Home() {
         ))}
       </div>
 
-      <div style=
+      <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '25px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#003366' }}>{currentMatch.title}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>{currentMatch.date}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.matchup}</div>
+        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.venue}</div>
+      </div>
+
+      <button
+        onClick={runSimulation}
+        disabled={calculating}
+        style={{
+          padding: '15px 30px',
+          background: calculating ? '#ccc' : '#003366',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          cursor: calculating ? 'not-allowed' : 'pointer',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          width: '100%',
+          maxWidth: '400px'
+        }}
+      >
+        {calculating ? '⚽ Calculating...' : '▶️ Run Simulation (10,000 iterations)'}
+      </button>
+
+      {results.length > 0 && (
+        <div style={{ marginTop: '30px' }}>
+          <h3 style={{ color: '#003366' }}>Results:</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+            <thead>
+              <tr style={{ background: '#003366', color: 'white' }}>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Team</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Group</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>Probability</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((r, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{r.team}</td>
+                  <td style={{ padding: '12px' }}>Group {r.group}</td>
+                  <td style={{ padding: '12px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '16px' }}>
+                    {r.probability.toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
+            Based on 10,000 Monte Carlo simulations of full group stage play
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
