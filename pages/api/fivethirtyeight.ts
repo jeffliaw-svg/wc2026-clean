@@ -52,4 +52,21 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     // Weaker qualifiers
     "Costa Rica": 59.9,
     "Jamaica": 59.5,
-    "Saudi Arabia":
+    "Saudi Arabia": 59.1,
+    "Iran": 58.7,
+    "Curaçao": 58.2,
+    "Panama": 57.8,
+    "Iraq": 57.4,
+    "United Arab Emirates": 57.0,
+    "Play-off 1": 62.0,
+    "Play-off 2": 60.0,
+    "Play-off 3": 58.0
+  }
+  
+  res.status(200).json({ 
+    success: true, 
+    teams,
+    count: Object.keys(teams).length,
+    lastUpdated: "2026-02-06"
+  })
+}
