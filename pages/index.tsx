@@ -1,4 +1,3 @@
-// Updated version
 import { useState } from 'react'
 import Head from 'next/head'
 
@@ -162,20 +161,19 @@ export default function Home() {
   }
 
   const simulateMatch = (ratingA: number, ratingB: number): 'home' | 'away' | 'draw' => {
-    // Use aggressive rating difference - cube the difference for bigger spreads
+    // Calculate rating difference with stronger amplification
     const diff = ratingA - ratingB
-    const adjustedDiff = Math.sign(diff) * Math.pow(Math.abs(diff), 1.5)
     
-    // Convert to win probability using aggressive sigmoid
-    const winProbA = 1 / (1 + Math.exp(-adjustedDiff / 15))
+    // Use ELO formula - stronger amplification for bigger spreads
+    const winProbA = 1 / (1 + Math.pow(10, -diff / 400))
     
     const rand = Math.random()
     
-    // 15% draw rate
-    if (rand < 0.15) return 'draw'
+    // 20% draw rate
+    if (rand < 0.20) return 'draw'
     
-    // Remaining 85% distributed by win probability
-    const adjRand = (rand - 0.15) / 0.85
+    // Remaining 80% distributed by win probability
+    const adjRand = (rand - 0.20) / 0.80
     return adjRand < winProbA ? 'home' : 'away'
   }
 
