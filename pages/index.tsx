@@ -70,16 +70,17 @@ export default function Home() {
         const iterations = 10000
         const teamCounts: { [key: string]: { count: number, group: string } } = {}
         
+        // Initialize all teams with 0 count so they all show up
+        groupETeams.forEach(t => {
+          teamCounts[t.name] = { count: 0, group: 'E' }
+        })
+        groupITeams.forEach(t => {
+          teamCounts[t.name] = { count: 0, group: 'I' }
+        })
+        
         for (let i = 0; i < iterations; i++) {
           const eRunnerUp = simulateGroup(groupETeams)
           const iRunnerUp = simulateGroup(groupITeams)
-          
-          if (!teamCounts[eRunnerUp]) {
-            teamCounts[eRunnerUp] = { count: 0, group: 'E' }
-          }
-          if (!teamCounts[iRunnerUp]) {
-            teamCounts[iRunnerUp] = { count: 0, group: 'I' }
-          }
           
           teamCounts[eRunnerUp].count++
           teamCounts[iRunnerUp].count++
@@ -106,52 +107,69 @@ export default function Home() {
     setCalculating(false)
   }
 
-  // Simulate entire group stage and return runner-up
   const simulateGroup = (teams: { name: string, rating: number }[]): string => {
-    const standings = teams.map(t => ({ name: t.name, rating: t.rating, points: 0, gd: 0 }))
+    const standings = teams.map(t => ({ name: t.name, rating: t.rating, points: 0, gd: 0, goals: 0 }))
     
     // Simulate all 6 matches (round-robin)
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
         const result = simulateMatch(standings[i].rating, standings[j].rating)
         
-        if (result === 'home') {
+        if (result.winner === 'home') {
           standings[i].points += 3
-          standings[i].gd += 1
-          standings[j].gd -= 1
-        } else if (result === 'away') {
+          standings[i].gd += result.goalDiff
+          standings[i].goals += result.homeGoals
+          standings[j].gd -= result.goalDiff
+          standings[j].goals += result.awayGoals
+        } else if (result.winner === 'away') {
           standings[j].points += 3
-          standings[j].gd += 1
-          standings[i].gd -= 1
+          standings[j].gd += result.goalDiff
+          standings[j].goals += result.awayGoals
+          standings[i].gd -= result.goalDiff
+          standings[i].goals += result.homeGoals
         } else {
           standings[i].points += 1
           standings[j].points += 1
+          standings[i].goals += result.homeGoals
+          standings[j].goals += result.awayGoals
         }
       }
     }
     
-    // Sort by points, then goal difference
+    // Sort by points, then goal difference, then goals scored
     standings.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
-      return b.gd - a.gd
+      if (b.gd !== a.gd) return b.gd - a.gd
+      return b.goals - a.goals
     })
     
-    // Return runner-up (2nd place)
     return standings[1].name
   }
 
-  // Simulate single match using ELO-based probability
-  const simulateMatch = (ratingA: number, ratingB: number): 'home' | 'away' | 'draw' => {
-    // ELO win probability formula
-    const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400))
+  const simulateMatch = (ratingA: number, ratingB: number): { winner: 'home' | 'away' | 'draw', goalDiff: number, homeGoals: number, awayGoals: number } => {
+    // Enhanced ELO formula with bigger rating impact
+    const ratingDiff = ratingA - ratingB
+    const expectedA = 1 / (1 + Math.pow(10, -ratingDiff / 300))
     
     const rand = Math.random()
     
-    // 25% draw probability, rest split by expected score
-    if (rand < 0.25) return 'draw'
+    // 20% draw probability
+    if (rand < 0.20) {
+      const drawGoals = Math.floor(Math.random() * 3)
+      return { winner: 'draw', goalDiff: 0, homeGoals: drawGoals, awayGoals: drawGoals }
+    }
     
-    const adjustedRand = (rand - 0.25) / 0.75
-    return adjustedRand < expectedA ? 'home' : 'away'
+    const adjustedRand = (rand - 0.20) / 0.80
+    
+    if (adjustedRand < expectedA) {
+      const goalDiff = Math.floor(Math.random() * 3) + 1
+      const homeGoals = goalDiff + Math.floor(Math.random() * 2)
+      return { winner: 'home', goalDiff, homeGoals, awayGoals: homeGoals - goalDiff }
+    } else {
+      const goalDiff = Math.floor(Math.random() * 3) + 1
+      const awayGoals = goalDiff + Math.floor(Math.random() * 2)
+      return { winner: 'away', goalDiff, homeGoals: awayGoals - goalDiff, awayGoals }
+    }
   }
 
   return (
