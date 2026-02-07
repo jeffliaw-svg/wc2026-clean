@@ -68,29 +68,45 @@ export default function Home() {
         ]
         
         const iterations = 10000
-        const teamCounts: { [key: string]: { count: number, group: string } } = {}
         
-        // Initialize all teams with 0 count so they all show up
-        groupETeams.forEach(t => {
-          teamCounts[t.name] = { count: 0, group: 'E' }
-        })
-        groupITeams.forEach(t => {
-          teamCounts[t.name] = { count: 0, group: 'I' }
-        })
+        // Track counts separately for each group
+        const groupECounts: { [key: string]: number } = {}
+        const groupICounts: { [key: string]: number } = {}
         
+        // Initialize all teams
+        groupETeams.forEach(t => groupECounts[t.name] = 0)
+        groupITeams.forEach(t => groupICounts[t.name] = 0)
+        
+        // Run simulations
         for (let i = 0; i < iterations; i++) {
           const eRunnerUp = simulateGroup(groupETeams)
           const iRunnerUp = simulateGroup(groupITeams)
           
-          teamCounts[eRunnerUp].count++
-          teamCounts[iRunnerUp].count++
+          groupECounts[eRunnerUp]++
+          groupICounts[iRunnerUp]++
         }
         
-        const resultsArray = Object.entries(teamCounts).map(([team, data]) => ({
-          team,
-          group: data.group,
-          probability: (data.count / iterations) * 100
-        })).sort((a, b) => b.probability - a.probability)
+        // Convert to results array with percentages
+        const resultsArray: any[] = []
+        
+        groupETeams.forEach(team => {
+          resultsArray.push({
+            team: team.name,
+            group: 'E',
+            probability: (groupECounts[team.name] / iterations) * 100
+          })
+        })
+        
+        groupITeams.forEach(team => {
+          resultsArray.push({
+            team: team.name,
+            group: 'I',
+            probability: (groupICounts[team.name] / iterations) * 100
+          })
+        })
+        
+        // Sort by probability descending
+        resultsArray.sort((a, b) => b.probability - a.probability)
         
         setResults(resultsArray)
       } else {
@@ -108,68 +124,58 @@ export default function Home() {
   }
 
   const simulateGroup = (teams: { name: string, rating: number }[]): string => {
-    const standings = teams.map(t => ({ name: t.name, rating: t.rating, points: 0, gd: 0, goals: 0 }))
+    const standings = teams.map(t => ({ 
+      name: t.name, 
+      rating: t.rating, 
+      points: 0, 
+      gd: 0 
+    }))
     
-    // Simulate all 6 matches (round-robin)
+    // Simulate all 6 group matches
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
         const result = simulateMatch(standings[i].rating, standings[j].rating)
         
-        if (result.winner === 'home') {
+        if (result === 'home') {
           standings[i].points += 3
-          standings[i].gd += result.goalDiff
-          standings[i].goals += result.homeGoals
-          standings[j].gd -= result.goalDiff
-          standings[j].goals += result.awayGoals
-        } else if (result.winner === 'away') {
+          standings[i].gd += 2
+          standings[j].gd -= 2
+        } else if (result === 'away') {
           standings[j].points += 3
-          standings[j].gd += result.goalDiff
-          standings[j].goals += result.awayGoals
-          standings[i].gd -= result.goalDiff
-          standings[i].goals += result.homeGoals
+          standings[j].gd += 2
+          standings[i].gd -= 2
         } else {
           standings[i].points += 1
           standings[j].points += 1
-          standings[i].goals += result.homeGoals
-          standings[j].goals += result.awayGoals
         }
       }
     }
     
-    // Sort by points, then goal difference, then goals scored
+    // Sort by points then goal difference
     standings.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
-      if (b.gd !== a.gd) return b.gd - a.gd
-      return b.goals - a.goals
+      return b.gd - a.gd
     })
     
     return standings[1].name
   }
 
-  const simulateMatch = (ratingA: number, ratingB: number): { winner: 'home' | 'away' | 'draw', goalDiff: number, homeGoals: number, awayGoals: number } => {
-    // Enhanced ELO formula with bigger rating impact
-    const ratingDiff = ratingA - ratingB
-    const expectedA = 1 / (1 + Math.pow(10, -ratingDiff / 300))
+  const simulateMatch = (ratingA: number, ratingB: number): 'home' | 'away' | 'draw' => {
+    // Use aggressive rating difference - cube the difference for bigger spreads
+    const diff = ratingA - ratingB
+    const adjustedDiff = Math.sign(diff) * Math.pow(Math.abs(diff), 1.5)
+    
+    // Convert to win probability using aggressive sigmoid
+    const winProbA = 1 / (1 + Math.exp(-adjustedDiff / 15))
     
     const rand = Math.random()
     
-    // 20% draw probability
-    if (rand < 0.20) {
-      const drawGoals = Math.floor(Math.random() * 3)
-      return { winner: 'draw', goalDiff: 0, homeGoals: drawGoals, awayGoals: drawGoals }
-    }
+    // 15% draw rate
+    if (rand < 0.15) return 'draw'
     
-    const adjustedRand = (rand - 0.20) / 0.80
-    
-    if (adjustedRand < expectedA) {
-      const goalDiff = Math.floor(Math.random() * 3) + 1
-      const homeGoals = goalDiff + Math.floor(Math.random() * 2)
-      return { winner: 'home', goalDiff, homeGoals, awayGoals: homeGoals - goalDiff }
-    } else {
-      const goalDiff = Math.floor(Math.random() * 3) + 1
-      const awayGoals = goalDiff + Math.floor(Math.random() * 2)
-      return { winner: 'away', goalDiff, homeGoals: awayGoals - goalDiff, awayGoals }
-    }
+    // Remaining 85% distributed by win probability
+    const adjRand = (rand - 0.15) / 0.85
+    return adjRand < winProbA ? 'home' : 'away'
   }
 
   return (
@@ -233,8 +239,8 @@ export default function Home() {
 
       {results.length > 0 && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366' }}>Results:</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+          <h3 style={{ color: '#003366' }}>Probability of Finishing Runner-up:</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', marginTop: '15px' }}>
             <thead>
               <tr style={{ background: '#003366', color: 'white' }}>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Team</th>
@@ -255,7 +261,7 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations of full group stage play
+            Based on 10,000 Monte Carlo simulations. Probabilities sum to 200% (one runner-up from each group).
           </div>
         </div>
       )}
