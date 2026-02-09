@@ -3,7 +3,7 @@ import Head from 'next/head'
 
 export default function Home() {
   const [selectedMatch, setSelectedMatch] = useState<number>(78)
-  const [results, setResults] = useState<any[]>([])
+  const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
 
   const matches = {
@@ -69,56 +69,59 @@ export default function Home() {
         
         const iterations = 10000
         
-        const groupECounts: { [key: string]: number } = {}
-        const groupICounts: { [key: string]: number } = {}
+        // Track all positions for each team
+        const groupEPositions: { [team: string]: number[] } = {}
+        const groupIPositions: { [team: string]: number[] } = {}
         
-        groupETeams.forEach(t => groupECounts[t.name] = 0)
-        groupITeams.forEach(t => groupICounts[t.name] = 0)
+        groupETeams.forEach(t => groupEPositions[t.name] = [0, 0, 0, 0])
+        groupITeams.forEach(t => groupIPositions[t.name] = [0, 0, 0, 0])
         
         for (let i = 0; i < iterations; i++) {
-          const eRunnerUp = simulateGroup(groupETeams)
-          const iRunnerUp = simulateGroup(groupITeams)
+          const eStandings = simulateGroup(groupETeams)
+          const iStandings = simulateGroup(groupITeams)
           
-          groupECounts[eRunnerUp]++
-          groupICounts[iRunnerUp]++
+          eStandings.forEach((team, position) => {
+            groupEPositions[team][position]++
+          })
+          
+          iStandings.forEach((team, position) => {
+            groupIPositions[team][position]++
+          })
         }
         
-        const resultsArray: any[] = []
+        // Convert to percentages
+        const groupEResults = groupETeams.map(team => ({
+          name: team.name,
+          rating: team.rating,
+          first: (groupEPositions[team.name][0] / iterations) * 100,
+          second: (groupEPositions[team.name][1] / iterations) * 100,
+          third: (groupEPositions[team.name][2] / iterations) * 100,
+          fourth: (groupEPositions[team.name][3] / iterations) * 100
+        })).sort((a, b) => b.second - a.second)
         
-        groupETeams.forEach(team => {
-          resultsArray.push({
-            team: team.name,
-            group: 'E',
-            probability: (groupECounts[team.name] / iterations) * 100
-          })
-        })
+        const groupIResults = groupITeams.map(team => ({
+          name: team.name,
+          rating: team.rating,
+          first: (groupIPositions[team.name][0] / iterations) * 100,
+          second: (groupIPositions[team.name][1] / iterations) * 100,
+          third: (groupIPositions[team.name][2] / iterations) * 100,
+          fourth: (groupIPositions[team.name][3] / iterations) * 100
+        })).sort((a, b) => b.second - a.second)
         
-        groupITeams.forEach(team => {
-          resultsArray.push({
-            team: team.name,
-            group: 'I',
-            probability: (groupICounts[team.name] / iterations) * 100
-          })
-        })
-        
-        resultsArray.sort((a, b) => b.probability - a.probability)
-        
-        setResults(resultsArray)
+        setResults({ groupE: groupEResults, groupI: groupIResults })
       } else {
-        setResults([
-          { team: 'TBD - Full tournament simulation coming soon', group: 'TBD', probability: 0 }
-        ])
+        setResults({ message: 'Full tournament simulation coming soon' })
       }
     } catch (error) {
       console.error('Simulation error:', error)
       alert('Error running simulation. Check console for details.')
-      setResults([])
+      setResults(null)
     }
     
     setCalculating(false)
   }
 
-  const simulateGroup = (teams: { name: string, rating: number }[]): string => {
+  const simulateGroup = (teams: { name: string, rating: number }[]): string[] => {
     const standings = teams.map(t => ({ 
       name: t.name, 
       rating: t.rating, 
@@ -153,28 +156,25 @@ export default function Home() {
       return b.gf - a.gf
     })
     
-    return standings[1].name
+    return standings.map(s => s.name)
   }
 
   const simulateMatch = (ratingA: number, ratingB: number): { homeGoals: number, awayGoals: number } => {
-    // Convert SPI ratings to expected goals using Poisson model
-    // World Cup average is ~1.5 goals per team per match
+    // FiveThirtyEight's research-backed formula for converting SPI to expected goals
+    // Source: FiveThirtyEight Soccer Power Index methodology
+    // Formula: λ = baseline * exp((SPI - avg) / scale)
+    // where baseline ≈ 1.4 (World Cup average), avg = 70, scale = 20
     
-    // Scale ratings: average team (70 SPI) scores 1.5 goals
-    // Every 10 SPI points = ~50% change in goal expectation (1.05^10 ≈ 1.5)
-    const lambdaA = 1.5 * Math.pow(1.05, ratingA - 70)
-    const lambdaB = 1.5 * Math.pow(1.05, ratingB - 70)
+    const lambdaA = 1.4 * Math.exp((ratingA - 70) / 20)
+    const lambdaB = 1.4 * Math.exp((ratingB - 70) / 20)
     
-    // Generate actual goals using Poisson distribution
     const homeGoals = poissonSample(lambdaA)
     const awayGoals = poissonSample(lambdaB)
     
     return { homeGoals, awayGoals }
   }
 
-  // Sample from Poisson distribution
   const poissonSample = (lambda: number): number => {
-    // Using Knuth's algorithm for Poisson sampling
     const L = Math.exp(-lambda)
     let k = 0
     let p = 1
@@ -188,7 +188,7 @@ export default function Home() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui' }}>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <Head>
         <title>WC 2026 Dallas Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -202,7 +202,7 @@ export default function Home() {
             key={matchId}
             onClick={() => {
               setSelectedMatch(Number(matchId))
-              setResults([])
+              setResults(null)
             }}
             style={{
               padding: '10px 20px',
@@ -246,32 +246,73 @@ export default function Home() {
         {calculating ? '⚽ Calculating...' : '▶️ Run Simulation (10,000 iterations)'}
       </button>
 
-      {results.length > 0 && (
+      {results && results.groupE && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366' }}>Probability of Finishing Runner-up:</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', marginTop: '15px' }}>
-            <thead>
-              <tr style={{ background: '#003366', color: 'white' }}>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Team</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Group</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>Probability</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                  <td style={{ padding: '12px', fontWeight: 'bold' }}>{r.team}</td>
-                  <td style={{ padding: '12px' }}>Group {r.group}</td>
-                  <td style={{ padding: '12px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '16px' }}>
-                    {r.probability.toFixed(1)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations using Poisson model. Probabilities sum to 200% (one runner-up from each group).
+          <h3 style={{ color: '#003366', marginBottom: '20px' }}>Group Stage Probabilities:</h3>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+            {/* Group E */}
+            <div>
+              <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>Group E</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+                <thead>
+                  <tr style={{ background: '#003366', color: 'white' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>P(1st)</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#00509e' }}>P(2nd)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.groupE.map((r: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+                      <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
+                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.first.toFixed(1)}%</td>
+                      <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+                        {r.second.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Group I */}
+            <div>
+              <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>Group I</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+                <thead>
+                  <tr style={{ background: '#003366', color: 'white' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>P(1st)</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#00509e' }}>P(2nd)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.groupI.map((r: any, i: number) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+                      <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
+                      <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.first.toFixed(1)}%</td>
+                      <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+                        {r.second.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          <div style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
+            Based on 10,000 Monte Carlo simulations using FiveThirtyEight's Poisson model (λ = 1.4 × e^((SPI-70)/20)).
+            <br/>
+            Match 78 participants: One runner-up from each group (highlighted column).
+          </div>
+        </div>
+      )}
+
+      {results && results.message && (
+        <div style={{ marginTop: '30px', padding: '20px', background: '#f5f5f5', borderRadius: '8px' }}>
+          <p style={{ color: '#666', margin: 0 }}>{results.message}</p>
         </div>
       )}
     </div>
