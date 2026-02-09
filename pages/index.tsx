@@ -69,15 +69,12 @@ export default function Home() {
         
         const iterations = 10000
         
-        // Track counts separately for each group
         const groupECounts: { [key: string]: number } = {}
         const groupICounts: { [key: string]: number } = {}
         
-        // Initialize all teams
         groupETeams.forEach(t => groupECounts[t.name] = 0)
         groupITeams.forEach(t => groupICounts[t.name] = 0)
         
-        // Run simulations
         for (let i = 0; i < iterations; i++) {
           const eRunnerUp = simulateGroup(groupETeams)
           const iRunnerUp = simulateGroup(groupITeams)
@@ -86,7 +83,6 @@ export default function Home() {
           groupICounts[iRunnerUp]++
         }
         
-        // Convert to results array with percentages
         const resultsArray: any[] = []
         
         groupETeams.forEach(team => {
@@ -105,7 +101,6 @@ export default function Home() {
           })
         })
         
-        // Sort by probability descending
         resultsArray.sort((a, b) => b.probability - a.probability)
         
         setResults(resultsArray)
@@ -128,22 +123,23 @@ export default function Home() {
       name: t.name, 
       rating: t.rating, 
       points: 0, 
-      gd: 0 
+      gd: 0,
+      gf: 0
     }))
     
-    // Simulate all 6 group matches
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
         const result = simulateMatch(standings[i].rating, standings[j].rating)
         
-        if (result === 'home') {
+        standings[i].gf += result.homeGoals
+        standings[j].gf += result.awayGoals
+        standings[i].gd += result.homeGoals - result.awayGoals
+        standings[j].gd += result.awayGoals - result.homeGoals
+        
+        if (result.homeGoals > result.awayGoals) {
           standings[i].points += 3
-          standings[i].gd += 2
-          standings[j].gd -= 2
-        } else if (result === 'away') {
+        } else if (result.awayGoals > result.homeGoals) {
           standings[j].points += 3
-          standings[j].gd += 2
-          standings[i].gd -= 2
         } else {
           standings[i].points += 1
           standings[j].points += 1
@@ -151,30 +147,45 @@ export default function Home() {
       }
     }
     
-    // Sort by points then goal difference
     standings.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
-      return b.gd - a.gd
+      if (b.gd !== a.gd) return b.gd - a.gd
+      return b.gf - a.gf
     })
     
     return standings[1].name
   }
 
-  const simulateMatch = (ratingA: number, ratingB: number): 'home' | 'away' | 'draw' => {
-    // Calculate rating difference with stronger amplification
-    const diff = ratingA - ratingB
+  const simulateMatch = (ratingA: number, ratingB: number): { homeGoals: number, awayGoals: number } => {
+    // Convert SPI ratings to expected goals using Poisson model
+    // Baseline of 1.3 goals per team (average in World Cup)
+    const baseline = 1.3
     
-    // Use ELO formula - stronger amplification for bigger spreads
-    const winProbA = 1 / (1 + Math.pow(10, -diff / 400))
+    // Calculate expected goals based on rating difference
+    // Every 25 SPI points ≈ 1 additional expected goal
+    const lambdaA = baseline * Math.exp((ratingA - 70) / 40)
+    const lambdaB = baseline * Math.exp((ratingB - 70) / 40)
     
-    const rand = Math.random()
+    // Generate actual goals using Poisson distribution
+    const homeGoals = poissonSample(lambdaA)
+    const awayGoals = poissonSample(lambdaB)
     
-    // 20% draw rate
-    if (rand < 0.20) return 'draw'
+    return { homeGoals, awayGoals }
+  }
+
+  // Sample from Poisson distribution
+  const poissonSample = (lambda: number): number => {
+    // Using Knuth's algorithm for Poisson sampling
+    const L = Math.exp(-lambda)
+    let k = 0
+    let p = 1
     
-    // Remaining 80% distributed by win probability
-    const adjRand = (rand - 0.20) / 0.80
-    return adjRand < winProbA ? 'home' : 'away'
+    do {
+      k++
+      p *= Math.random()
+    } while (p > L)
+    
+    return Math.max(0, k - 1)
   }
 
   return (
@@ -260,7 +271,7 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '14px', color: '#666' }}>
-            Based on 10,000 Monte Carlo simulations. Probabilities sum to 200% (one runner-up from each group).
+            Based on 10,000 Monte Carlo simulations using Poisson model. Probabilities sum to 200% (one runner-up from each group).
           </div>
         </div>
       )}
