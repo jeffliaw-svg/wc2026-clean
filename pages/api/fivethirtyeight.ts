@@ -57,9 +57,22 @@ const FALLBACK_FIFA_POINTS: Record<string, number> = {
   "Jamaica": 1442.94,
   "Costa Rica": 1441.42,
 
+  // Additional qualified teams
+  "Algeria": 1484.71,
+  "Jordan": 1441.36,
+  "Uzbekistan": 1456.93,
+  "Ghana": 1430.51,
+  "Haiti": 1371.58,
+  "Cape Verde": 1399.43,
+  "Qatar": 1461.79,
+
   // Playoff placeholders (estimated)
+  "UEFA Playoff A": 1550.00,
+  "UEFA Playoff B": 1550.00,
   "UEFA Playoff C": 1530.00,
+  "UEFA Playoff D": 1550.00,
   "TBD Playoff": 1400.00,
+  "Intercontinental Playoff 1": 1400.00,
   "Intercontinental Playoff 2": 1400.00,
 }
 
