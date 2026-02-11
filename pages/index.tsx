@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Head from 'next/head'
 
 type TeamResult = {
@@ -10,20 +10,19 @@ type TeamResult = {
   fourth: number
 }
 
-type KalshiTeam = { team: string; pWin: number; pQualify: number }
-type KalshiData = {
-  success: boolean
-  groups: Record<string, KalshiTeam[]>
-  lastFetched: string
-} | null
+type MatchProb = {
+  teamA: string
+  teamB: string
+  pA: number
+  pDraw: number
+  pB: number
+}
 
 export default function Home() {
   const [selectedMatch, setSelectedMatch] = useState<number>(78)
   const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
-  const [kalshiData, setKalshiData] = useState<KalshiData>(null)
-  const [kalshiError, setKalshiError] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<'kalshi' | 'simulation'>('kalshi')
+  const [showDetail, setShowDetail] = useState(false)
 
   const matches: Record<number, {
     title: string
@@ -94,28 +93,56 @@ export default function Home() {
     ],
   }
 
-  // Fetch Kalshi market data on mount
-  useEffect(() => {
-    fetch('/api/kalshi')
-      .then(r => r.json())
-      .then(data => {
-        if (data.success && data.groups && Object.keys(data.groups).length > 0) {
-          setKalshiData(data)
-          setDataSource('kalshi')
-        } else {
-          setKalshiError(data.error || 'No market data available')
-          setDataSource('simulation')
-        }
-      })
-      .catch(() => {
-        setKalshiError('Could not connect to Kalshi API')
-        setDataSource('simulation')
-      })
-  }, [])
-
   const currentMatch = matches[selectedMatch]
 
-  // --- Simulation helpers (used as fallback when Kalshi unavailable) ---
+  // --- Poisson helpers ---
+
+  const poissonPmf = (lambda: number, k: number): number => {
+    return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k)
+  }
+
+  const factorial = (n: number): number => {
+    let f = 1
+    for (let i = 2; i <= n; i++) f *= i
+    return f
+  }
+
+  const spiToLambda = (rating: number): number => 1.4 * Math.exp((rating - 70) / 20)
+
+  // Analytical match probabilities from Poisson model
+  const calcMatchProbs = (ratingA: number, ratingB: number): { pA: number; pDraw: number; pB: number } => {
+    const lambdaA = spiToLambda(ratingA)
+    const lambdaB = spiToLambda(ratingB)
+    let pA = 0, pDraw = 0, pB = 0
+    const maxGoals = 10
+    for (let a = 0; a <= maxGoals; a++) {
+      for (let b = 0; b <= maxGoals; b++) {
+        const p = poissonPmf(lambdaA, a) * poissonPmf(lambdaB, b)
+        if (a > b) pA += p
+        else if (a === b) pDraw += p
+        else pB += p
+      }
+    }
+    return { pA, pDraw, pB }
+  }
+
+  // Get all 6 match probabilities for a 4-team group
+  const calcGroupMatchProbs = (teams: { name: string; rating: number }[]): MatchProb[] => {
+    const probs: MatchProb[] = []
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        const { pA, pDraw, pB } = calcMatchProbs(teams[i].rating, teams[j].rating)
+        probs.push({
+          teamA: teams[i].name,
+          teamB: teams[j].name,
+          pA: pA * 100,
+          pDraw: pDraw * 100,
+          pB: pB * 100,
+        })
+      }
+    }
+    return probs
+  }
 
   const poissonSample = (lambda: number): number => {
     const L = Math.exp(-lambda)
@@ -129,12 +156,9 @@ export default function Home() {
   }
 
   const simulateMatch = (ratingA: number, ratingB: number) => {
-    const lambdaA = 1.4 * Math.exp((ratingA - 70) / 20)
-    const lambdaB = 1.4 * Math.exp((ratingB - 70) / 20)
-    return {
-      homeGoals: poissonSample(lambdaA),
-      awayGoals: poissonSample(lambdaB),
-    }
+    const lambdaA = spiToLambda(ratingA)
+    const lambdaB = spiToLambda(ratingB)
+    return { homeGoals: poissonSample(lambdaA), awayGoals: poissonSample(lambdaB) }
   }
 
   const simulateGroup = (teams: { name: string; rating: number }[]): string[] => {
@@ -175,51 +199,10 @@ export default function Home() {
     if (et.homeGoals !== et.awayGoals) {
       return et.homeGoals > et.awayGoals ? 'A' : 'B'
     }
-    const penaltyEdge = 0.5 + (ratingA - ratingB) * 0.002
-    return Math.random() < penaltyEdge ? 'A' : 'B'
+    return Math.random() < 0.5 + (ratingA - ratingB) * 0.002 ? 'A' : 'B'
   }
 
-  // --- Kalshi helpers ---
-
-  const findKalshiTeam = (group: string, teamName: string): KalshiTeam | null => {
-    if (!kalshiData?.groups?.[group]) return null
-    const lower = teamName.toLowerCase()
-    return kalshiData.groups[group].find(t => {
-      const kLower = t.team.toLowerCase()
-      return kLower.includes(lower.split(' ')[0])
-        || lower.includes(kLower.split(' ')[0])
-        || kLower === lower
-    }) || null
-  }
-
-  const buildKalshiGroupResults = (groupLetter: string): TeamResult[] | null => {
-    const teams = groupTeams[groupLetter]
-    if (!teams || !kalshiData?.groups?.[groupLetter]) return null
-
-    const results: TeamResult[] = teams.map(t => {
-      const k = findKalshiTeam(groupLetter, t.name)
-      const pWin = k ? k.pWin : 0
-      const pQualify = k ? k.pQualify : 0
-      // P(2nd) ≈ P(qualify) - P(win group)
-      // This slightly overstates since P(qualify) includes some 3rd-place advancement,
-      // but it's the best derivation available from Kalshi's two market types
-      const pSecond = Math.max(0, pQualify - pWin)
-      return {
-        name: t.name,
-        rating: t.rating,
-        first: pWin,
-        second: pSecond,
-        third: 0,
-        fourth: 0,
-      }
-    })
-
-    // Check if we actually got meaningful data
-    const hasData = results.some(r => r.first > 0 || r.second > 0)
-    return hasData ? results.sort((a, b) => b.second - a.second) : null
-  }
-
-  // --- Main simulation runner ---
+  // --- Main simulation ---
 
   const runSimulation = async () => {
     setCalculating(true)
@@ -233,53 +216,16 @@ export default function Home() {
 
       if (currentMatch.round === 'R32') {
         const [groupA, groupB] = currentMatch.groups
-
-        // --- Group probabilities: Kalshi first, simulation fallback ---
-        let groupAResults: TeamResult[]
-        let groupBResults: TeamResult[]
-        let usedKalshi = false
-
-        const kalshiA = buildKalshiGroupResults(groupA)
-        const kalshiB = buildKalshiGroupResults(groupB)
-
-        if (kalshiA && kalshiB) {
-          groupAResults = kalshiA
-          groupBResults = kalshiB
-          usedKalshi = true
-        } else {
-          // Fallback: Monte Carlo simulation for group probabilities
-          const teamsA = groupTeams[groupA].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
-          const teamsB = groupTeams[groupB].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
-          const positionsA: Record<string, number[]> = {}
-          const positionsB: Record<string, number[]> = {}
-          teamsA.forEach(t => (positionsA[t.name] = [0, 0, 0, 0]))
-          teamsB.forEach(t => (positionsB[t.name] = [0, 0, 0, 0]))
-
-          for (let i = 0; i < iterations; i++) {
-            simulateGroup(teamsA).forEach((team, pos) => positionsA[team][pos]++)
-            simulateGroup(teamsB).forEach((team, pos) => positionsB[team][pos]++)
-          }
-
-          groupAResults = teamsA.map(team => ({
-            name: team.name, rating: team.rating,
-            first: (positionsA[team.name][0] / iterations) * 100,
-            second: (positionsA[team.name][1] / iterations) * 100,
-            third: (positionsA[team.name][2] / iterations) * 100,
-            fourth: (positionsA[team.name][3] / iterations) * 100,
-          })).sort((a, b) => b.second - a.second)
-
-          groupBResults = teamsB.map(team => ({
-            name: team.name, rating: team.rating,
-            first: (positionsB[team.name][0] / iterations) * 100,
-            second: (positionsB[team.name][1] / iterations) * 100,
-            third: (positionsB[team.name][2] / iterations) * 100,
-            fourth: (positionsB[team.name][3] / iterations) * 100,
-          })).sort((a, b) => b.second - a.second)
-        }
-
-        // --- Knockout match prediction: always simulation (Kalshi has no match-level markets) ---
         const teamsA = groupTeams[groupA].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
         const teamsB = groupTeams[groupB].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
+
+        // Track positions across all iterations
+        const positionsA: Record<string, number[]> = {}
+        const positionsB: Record<string, number[]> = {}
+        teamsA.forEach(t => (positionsA[t.name] = [0, 0, 0, 0]))
+        teamsB.forEach(t => (positionsB[t.name] = [0, 0, 0, 0]))
+
+        // Track knockout match outcomes
         const matchWins: Record<string, number> = {}
         teamsA.forEach(t => (matchWins[t.name] = 0))
         teamsB.forEach(t => (matchWins[t.name] = 0))
@@ -287,6 +233,9 @@ export default function Home() {
         for (let i = 0; i < iterations; i++) {
           const standingsA = simulateGroup(teamsA)
           const standingsB = simulateGroup(teamsB)
+          standingsA.forEach((team, pos) => positionsA[team][pos]++)
+          standingsB.forEach((team, pos) => positionsB[team][pos]++)
+
           const runnerA = standingsA[1]
           const runnerB = standingsB[1]
           const rA = teamsA.find(t => t.name === runnerA)!.rating
@@ -295,21 +244,35 @@ export default function Home() {
           matchWins[winner === 'A' ? runnerA : runnerB]++
         }
 
+        const toResults = (teams: typeof teamsA, positions: typeof positionsA) =>
+          teams.map(team => ({
+            name: team.name,
+            rating: team.rating,
+            first: (positions[team.name][0] / iterations) * 100,
+            second: (positions[team.name][1] / iterations) * 100,
+            third: (positions[team.name][2] / iterations) * 100,
+            fourth: (positions[team.name][3] / iterations) * 100,
+          })).sort((a, b) => b.first - a.first)
+
         const totalMatchWins = Object.values(matchWins).reduce((a, b) => a + b, 0)
         const teamWinPcts = [...teamsA, ...teamsB]
           .map(t => ({ name: t.name, pct: (matchWins[t.name] / totalMatchWins) * 100 }))
           .filter(t => t.pct > 0)
           .sort((a, b) => b.pct - a.pct)
 
+        // Analytical individual match probabilities
+        const matchProbsA = calcGroupMatchProbs(teamsA)
+        const matchProbsB = calcGroupMatchProbs(teamsB)
+
         setResults({
-          groupA: groupAResults,
-          groupB: groupBResults,
+          groupA: toResults(teamsA, positionsA),
+          groupB: toResults(teamsB, positionsB),
           groupALabel: `Group ${groupA}`,
           groupBLabel: `Group ${groupB}`,
           matchWinPcts: teamWinPcts,
-          usedKalshi,
+          matchProbsA,
+          matchProbsB,
         })
-        setDataSource(usedKalshi ? 'kalshi' : 'simulation')
       } else if (selectedMatch === 93) {
         const groups = ['D', 'E', 'G', 'I']
         const allGroupTeams: Record<string, { name: string; rating: number }[]> = {}
@@ -324,18 +287,13 @@ export default function Home() {
           const standings: Record<string, string[]> = {}
           groups.forEach(g => { standings[g] = simulateGroup(allGroupTeams[g]) })
 
-          const runner2E = standings['E'][1]
-          const runner2I = standings['I'][1]
-          const runner2D = standings['D'][1]
-          const runner2G = standings['G'][1]
+          const r2E = allGroupTeams['E'].find(t => t.name === standings['E'][1])!.rating
+          const r2I = allGroupTeams['I'].find(t => t.name === standings['I'][1])!.rating
+          const r2D = allGroupTeams['D'].find(t => t.name === standings['D'][1])!.rating
+          const r2G = allGroupTeams['G'].find(t => t.name === standings['G'][1])!.rating
 
-          const r2E = allGroupTeams['E'].find(t => t.name === runner2E)!.rating
-          const r2I = allGroupTeams['I'].find(t => t.name === runner2I)!.rating
-          const r2D = allGroupTeams['D'].find(t => t.name === runner2D)!.rating
-          const r2G = allGroupTeams['G'].find(t => t.name === runner2G)!.rating
-
-          const w78 = simulateKnockoutMatch(r2E, r2I) === 'A' ? runner2E : runner2I
-          const w88 = simulateKnockoutMatch(r2D, r2G) === 'A' ? runner2D : runner2G
+          const w78 = simulateKnockoutMatch(r2E, r2I) === 'A' ? standings['E'][1] : standings['I'][1]
+          const w88 = simulateKnockoutMatch(r2D, r2G) === 'A' ? standings['D'][1] : standings['G'][1]
 
           r16Appearances[w78] = (r16Appearances[w78] || 0) + 1
           r16Appearances[w88] = (r16Appearances[w88] || 0) + 1
@@ -355,9 +313,8 @@ export default function Home() {
               winPct: (wins / iterations) * 100,
             }))
             .sort((a, b) => b.winPct - a.winPct),
-          note: 'Simulates feeder groups (D, E, G, I) through R32 to project R16 matchup at AT&T Stadium.',
+          note: 'Simulates groups D, E, G, I through R32 to project R16 at AT&T Stadium.',
         })
-        setDataSource('simulation')
       } else if (selectedMatch === 101) {
         const groups = ['D', 'E', 'G', 'I']
         const allGroupTeams: Record<string, { name: string; rating: number }[]> = {}
@@ -379,16 +336,12 @@ export default function Home() {
             return 65
           }
 
-          const runner2E = standings['E'][1]
-          const runner2I = standings['I'][1]
-          const runner2D = standings['D'][1]
-          const runner2G = standings['G'][1]
-
-          const w78 = simulateKnockoutMatch(getRating(runner2E), getRating(runner2I)) === 'A' ? runner2E : runner2I
-          const w88 = simulateKnockoutMatch(getRating(runner2D), getRating(runner2G)) === 'A' ? runner2D : runner2G
+          const w78 = simulateKnockoutMatch(getRating(standings['E'][1]), getRating(standings['I'][1])) === 'A'
+            ? standings['E'][1] : standings['I'][1]
+          const w88 = simulateKnockoutMatch(getRating(standings['D'][1]), getRating(standings['G'][1])) === 'A'
+            ? standings['D'][1] : standings['G'][1]
 
           const r16Winner = simulateKnockoutMatch(getRating(w78), getRating(w88)) === 'A' ? w78 : w88
-
           const winner1E = standings['E'][0]
           const qfWinner = simulateKnockoutMatch(getRating(r16Winner), getRating(winner1E)) === 'A'
             ? r16Winner : winner1E
@@ -401,9 +354,8 @@ export default function Home() {
           sfResults: Object.entries(sfWins)
             .map(([name, wins]) => ({ name, winPct: (wins / iterations) * 100 }))
             .sort((a, b) => b.winPct - a.winPct),
-          note: 'Projects semifinal participants from Dallas-bracket feeder groups (D, E, G, I) through R32, R16, and QF rounds.',
+          note: 'Projects semifinal from groups D, E, G, I through R32, R16, and QF.',
         })
-        setDataSource('simulation')
       }
     } catch (error) {
       console.error('Simulation error:', error)
@@ -420,7 +372,7 @@ export default function Home() {
     <sup style={{ fontSize: '9px', opacity: 0.6, marginLeft: '1px' }}>{children}</sup>
   )
 
-  const renderGroupTable = (label: string, teamResults: TeamResult[], usedKalshi: boolean) => (
+  const renderGroupTable = (label: string, teamResults: TeamResult[]) => (
     <div>
       <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
@@ -436,10 +388,44 @@ export default function Home() {
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>
-                {r.first.toFixed(1)}%<Sup>{usedKalshi ? 'K' : 'S'}</Sup>
+                {r.first.toFixed(1)}%<Sup>S</Sup>
               </td>
               <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
-                {r.second.toFixed(1)}%<Sup>{usedKalshi ? 'K' : 'S'}</Sup>
+                {r.second.toFixed(1)}%<Sup>S</Sup>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
+  const renderMatchDetail = (label: string, matchProbs: MatchProb[]) => (
+    <div>
+      <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '16px' }}>{label} &mdash; Individual Matches</h4>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
+        <thead>
+          <tr style={{ background: '#555', color: 'white' }}>
+            <th style={{ padding: '8px', textAlign: 'left' }}>Match</th>
+            <th style={{ padding: '8px', textAlign: 'right' }}>Win</th>
+            <th style={{ padding: '8px', textAlign: 'right' }}>Draw</th>
+            <th style={{ padding: '8px', textAlign: 'right' }}>Loss</th>
+          </tr>
+        </thead>
+        <tbody>
+          {matchProbs.map((m, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+              <td style={{ padding: '8px' }}>
+                <strong>{m.teamA}</strong> vs {m.teamB}
+              </td>
+              <td style={{ padding: '8px', textAlign: 'right', color: '#1a6b3c', fontWeight: 'bold' }}>
+                {m.pA.toFixed(1)}%
+              </td>
+              <td style={{ padding: '8px', textAlign: 'right', color: '#666' }}>
+                {m.pDraw.toFixed(1)}%
+              </td>
+              <td style={{ padding: '8px', textAlign: 'right', color: '#cc3333' }}>
+                {m.pB.toFixed(1)}%
               </td>
             </tr>
           ))}
@@ -462,27 +448,12 @@ export default function Home() {
         AT&amp;T Stadium, Arlington TX &mdash; 9 matches
       </p>
 
-      {/* Data source indicator */}
-      <div style={{ marginBottom: '15px', fontSize: '12px' }}>
-        {kalshiData ? (
-          <span style={{ color: '#1a6b3c' }}>
-            Data: Kalshi market prices (fetched {new Date(kalshiData.lastFetched).toLocaleTimeString()})
-          </span>
-        ) : kalshiError ? (
-          <span style={{ color: '#cc6600' }}>
-            Kalshi unavailable: {kalshiError} &mdash; using Monte Carlo simulation fallback
-          </span>
-        ) : (
-          <span style={{ color: '#999' }}>Loading Kalshi market data...</span>
-        )}
-      </div>
-
       {/* Match selector */}
       <div style={{ marginBottom: '25px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {Object.entries(matches).map(([matchId, match]) => (
           <button
             key={matchId}
-            onClick={() => { setSelectedMatch(Number(matchId)); setResults(null) }}
+            onClick={() => { setSelectedMatch(Number(matchId)); setResults(null); setShowDetail(false) }}
             style={{
               padding: '10px 16px',
               background: selectedMatch === Number(matchId) ? '#003366' : '#f5f5f5',
@@ -536,25 +507,41 @@ export default function Home() {
           <h3 style={{ color: '#003366', marginBottom: '20px' }}>Group Stage Probabilities</h3>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-            {renderGroupTable(results.groupALabel, results.groupA, results.usedKalshi)}
-            {renderGroupTable(results.groupBLabel, results.groupB, results.usedKalshi)}
+            {renderGroupTable(results.groupALabel, results.groupA)}
+            {renderGroupTable(results.groupBLabel, results.groupB)}
           </div>
 
-          {results.usedKalshi && (
-            <div style={{ marginTop: '12px', fontSize: '12px', color: '#888' }}>
-              P(1st) = Kalshi &ldquo;Win Group&rdquo; market price. P(2nd) = P(Qualify) &minus; P(Win Group).
+          {/* Toggle detail view */}
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            style={{
+              marginTop: '15px',
+              padding: '8px 16px',
+              background: 'white',
+              color: '#003366',
+              border: '1px solid #003366',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            {showDetail ? 'Hide' : 'Show'} Individual Match Results
+          </button>
+
+          {/* Individual match detail */}
+          {showDetail && results.matchProbsA && (
+            <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+              {renderMatchDetail(results.groupALabel, results.matchProbsA)}
+              {renderMatchDetail(results.groupBLabel, results.matchProbsB)}
             </div>
           )}
 
           {/* Match prediction */}
           {results.matchWinPcts && results.matchWinPcts.length > 0 && (
             <div style={{ marginTop: '25px', background: '#003366', padding: '20px', borderRadius: '8px', color: 'white' }}>
-              <h4 style={{ margin: '0 0 5px 0', fontSize: '16px' }}>
-                Match {selectedMatch} Win Probability
+              <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
+                Match {selectedMatch} Win Probability<Sup>S</Sup>
               </h4>
-              <p style={{ margin: '0 0 15px 0', fontSize: '12px', opacity: 0.7 }}>
-                via Monte Carlo simulation (knockout matches always simulated)
-              </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
                 {results.matchWinPcts.slice(0, 6).map((t: any, i: number) => (
                   <div key={i} style={{
@@ -564,19 +551,24 @@ export default function Home() {
                     minWidth: '120px',
                   }}>
                     <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
-                    <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%<Sup>S</Sup></div>
+                    <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+            <sup>S</sup> = 10,000 Monte Carlo simulations. Each team plays 3 group games (round-robin). Standings by points &gt; goal difference &gt; goals for.
+            Match probabilities from Poisson model (&lambda; = 1.4 &times; e<sup>(SPI-70)/20</sup>).
+          </div>
         </div>
       )}
 
       {/* R16 Results */}
       {results && results.r16 && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Round of 16 Projections</h3>
+          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Round of 16 Projections<Sup>S</Sup></h3>
           <table style={{ width: '100%', maxWidth: '600px', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
             <thead>
               <tr style={{ background: '#003366', color: 'white' }}>
@@ -589,9 +581,9 @@ export default function Home() {
               {results.r16Results.map((r: any, i: number) => (
                 <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
                   <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
-                  <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.appearances.toFixed(1)}%<Sup>S</Sup></td>
+                  <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.appearances.toFixed(1)}%</td>
                   <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
-                    {r.winPct.toFixed(1)}%<Sup>S</Sup>
+                    {r.winPct.toFixed(1)}%
                   </td>
                 </tr>
               ))}
@@ -604,7 +596,7 @@ export default function Home() {
       {/* Semifinal Results */}
       {results && results.sf && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Semifinal Projections</h3>
+          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Semifinal Projections<Sup>S</Sup></h3>
           <table style={{ width: '100%', maxWidth: '600px', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
             <thead>
               <tr style={{ background: '#003366', color: 'white' }}>
@@ -617,7 +609,7 @@ export default function Home() {
                 <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
                   <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
                   <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
-                    {r.winPct.toFixed(1)}%<Sup>S</Sup>
+                    {r.winPct.toFixed(1)}%
                   </td>
                 </tr>
               ))}
@@ -629,7 +621,7 @@ export default function Home() {
 
       {/* Legend */}
       <div style={{ marginTop: '30px', paddingTop: '15px', borderTop: '1px solid #e0e0e0', fontSize: '12px', color: '#888' }}>
-        <sup>K</sup> = Kalshi market price &nbsp;&nbsp; <sup>S</sup> = Monte Carlo simulation (10,000 iterations)
+        <sup>S</sup> = Monte Carlo simulation (10,000 iterations)
       </div>
     </div>
   )
