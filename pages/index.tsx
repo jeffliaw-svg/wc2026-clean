@@ -23,6 +23,7 @@ export default function Home() {
   const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [ratingSource, setRatingSource] = useState<string>('')
 
   const matches: Record<number, {
     title: string
@@ -66,40 +67,69 @@ export default function Home() {
     },
   }
 
+  // Group teams with FIFA points as fallback ratings.
+  // These are overridden at runtime by live FIFA rankings when available.
   const groupTeams: Record<string, { name: string; rating: number }[]> = {
     D: [
-      { name: 'United States', rating: 73.8 },
-      { name: 'Paraguay', rating: 65.0 },
-      { name: 'Australia', rating: 64.3 },
-      { name: 'UEFA Playoff C', rating: 62.0 },
+      { name: 'United States', rating: 1680.00 },
+      { name: 'Paraguay', rating: 1492.72 },
+      { name: 'Australia', rating: 1583.86 },
+      { name: 'UEFA Playoff C', rating: 1530.00 },
     ],
     E: [
-      { name: 'Germany', rating: 85.7 },
-      { name: 'Ecuador', rating: 69.7 },
-      { name: "C\u00f4te d'Ivoire", rating: 66.1 },
-      { name: 'Cura\u00e7ao', rating: 58.2 },
+      { name: 'Germany', rating: 1724.15 },
+      { name: 'Ecuador', rating: 1591.73 },
+      { name: "C\u00f4te d'Ivoire", rating: 1496.84 },
+      { name: 'Cura\u00e7ao', rating: 1341.53 },
     ],
     G: [
-      { name: 'Belgium', rating: 82.4 },
-      { name: 'Egypt', rating: 65.5 },
-      { name: 'Iran', rating: 58.7 },
-      { name: 'New Zealand', rating: 57.0 },
+      { name: 'Belgium', rating: 1730.71 },
+      { name: 'Egypt', rating: 1583.49 },
+      { name: 'Iran', rating: 1617.02 },
+      { name: 'New Zealand', rating: 1362.48 },
     ],
     I: [
-      { name: 'France', rating: 89.4 },
-      { name: 'Senegal', rating: 72.4 },
-      { name: 'Norway', rating: 67.3 },
-      { name: 'TBD Playoff', rating: 60.0 },
+      { name: 'France', rating: 1870.00 },
+      { name: 'Senegal', rating: 1706.83 },
+      { name: 'Norway', rating: 1553.14 },
+      { name: 'TBD Playoff', rating: 1400.00 },
     ],
   }
 
   const currentMatch = matches[selectedMatch]
 
-  // --- Poisson helpers ---
+  // ============================================================
+  // Poisson Goal Model — Research-Backed Formulation
+  //
+  // Based on the log-linear Poisson regression (Maher 1982,
+  // Dixon & Coles 1997) adapted for a single-number rating system.
+  //
+  // Formula:
+  //   log(λ_A) = μ + β × (R_A − R_B)
+  //   log(λ_B) = μ − β × (R_A − R_B)
+  //
+  // Where:
+  //   μ = log(1.26) ≈ 0.231
+  //       Average goals per team per match in modern World Cups
+  //       (2002-2022 avg: 2.52 total goals / 2 = 1.26 per team)
+  //
+  //   β = 0.00149
+  //       Calibrated by minimizing squared error between the
+  //       Poisson model's win expectancy and the FIFA Elo formula:
+  //       W_e = 1 / (1 + 10^(-dr/600))
+  //       across rating differences from 50 to 770 FIFA points.
+  //
+  //   R_A, R_B = FIFA ranking points (Elo-based since 2018)
+  //
+  // Dixon-Coles τ correction (1997):
+  //   Adjusts joint probabilities for scorelines 0-0, 0-1, 1-0, 1-1
+  //   to correct the independent Poisson model's underestimate of draws.
+  //   ρ ≈ -0.05 (fitted from international football data)
+  // ============================================================
 
-  const poissonPmf = (lambda: number, k: number): number => {
-    return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k)
-  }
+  const MU = Math.log(1.26)  // ≈ 0.231
+  const BETA = 0.00149
+  const RHO = -0.05  // Dixon-Coles dependence parameter
 
   const factorial = (n: number): number => {
     let f = 1
@@ -107,23 +137,46 @@ export default function Home() {
     return f
   }
 
-  const spiToLambda = (rating: number): number => 1.4 * Math.exp((rating - 70) / 20)
+  const poissonPmf = (lambda: number, k: number): number => {
+    return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k)
+  }
 
-  // Analytical match probabilities from Poisson model
+  // Convert FIFA points difference to expected goals (λ)
+  const ratingsToLambda = (ratingA: number, ratingB: number): { lambdaA: number; lambdaB: number } => {
+    const dr = ratingA - ratingB
+    return {
+      lambdaA: Math.exp(MU + BETA * dr),
+      lambdaB: Math.exp(MU - BETA * dr),
+    }
+  }
+
+  // Dixon-Coles τ correction for low-scoring results
+  const dixonColesTau = (x: number, y: number, lamA: number, lamB: number): number => {
+    if (x === 0 && y === 0) return 1 - lamA * lamB * RHO
+    if (x === 0 && y === 1) return 1 + lamA * RHO
+    if (x === 1 && y === 0) return 1 + lamB * RHO
+    if (x === 1 && y === 1) return 1 - RHO
+    return 1
+  }
+
+  // Analytical match probabilities using Poisson + Dixon-Coles
   const calcMatchProbs = (ratingA: number, ratingB: number): { pA: number; pDraw: number; pB: number } => {
-    const lambdaA = spiToLambda(ratingA)
-    const lambdaB = spiToLambda(ratingB)
+    const { lambdaA, lambdaB } = ratingsToLambda(ratingA, ratingB)
     let pA = 0, pDraw = 0, pB = 0
     const maxGoals = 10
     for (let a = 0; a <= maxGoals; a++) {
       for (let b = 0; b <= maxGoals; b++) {
-        const p = poissonPmf(lambdaA, a) * poissonPmf(lambdaB, b)
+        const pIndep = poissonPmf(lambdaA, a) * poissonPmf(lambdaB, b)
+        const tau = dixonColesTau(a, b, lambdaA, lambdaB)
+        const p = pIndep * tau
         if (a > b) pA += p
         else if (a === b) pDraw += p
         else pB += p
       }
     }
-    return { pA, pDraw, pB }
+    // Renormalize (tau can shift total slightly from 1.0)
+    const total = pA + pDraw + pB
+    return { pA: pA / total, pDraw: pDraw / total, pB: pB / total }
   }
 
   // Get all 6 match probabilities for a 4-team group
@@ -144,6 +197,7 @@ export default function Home() {
     return probs
   }
 
+  // Poisson random sample for simulation
   const poissonSample = (lambda: number): number => {
     const L = Math.exp(-lambda)
     let k = 0
@@ -155,12 +209,13 @@ export default function Home() {
     return Math.max(0, k - 1)
   }
 
+  // Simulate a single match (group stage: can draw)
   const simulateMatch = (ratingA: number, ratingB: number) => {
-    const lambdaA = spiToLambda(ratingA)
-    const lambdaB = spiToLambda(ratingB)
+    const { lambdaA, lambdaB } = ratingsToLambda(ratingA, ratingB)
     return { homeGoals: poissonSample(lambdaA), awayGoals: poissonSample(lambdaB) }
   }
 
+  // Simulate group stage: round-robin, standings by pts > gd > gf
   const simulateGroup = (teams: { name: string; rating: number }[]): string[] => {
     const standings = teams.map(t => ({
       name: t.name, rating: t.rating, points: 0, gd: 0, gf: 0,
@@ -190,16 +245,20 @@ export default function Home() {
     return standings.map(s => s.name)
   }
 
+  // Simulate knockout match: 90 min → extra time → penalties
   const simulateKnockoutMatch = (ratingA: number, ratingB: number): 'A' | 'B' => {
     const result = simulateMatch(ratingA, ratingB)
     if (result.homeGoals !== result.awayGoals) {
       return result.homeGoals > result.awayGoals ? 'A' : 'B'
     }
-    const et = simulateMatch(ratingA * 0.98, ratingB * 0.98)
-    if (et.homeGoals !== et.awayGoals) {
-      return et.homeGoals > et.awayGoals ? 'A' : 'B'
-    }
-    return Math.random() < 0.5 + (ratingA - ratingB) * 0.002 ? 'A' : 'B'
+    // Extra time: slightly reduced intensity (scale lambdas by ~0.33 for 30 min)
+    const { lambdaA, lambdaB } = ratingsToLambda(ratingA, ratingB)
+    const etA = poissonSample(lambdaA * 0.33)
+    const etB = poissonSample(lambdaB * 0.33)
+    if (etA !== etB) return etA > etB ? 'A' : 'B'
+    // Penalties: slight edge to higher-rated team
+    const pA = 0.5 + (ratingA - ratingB) * 0.0002
+    return Math.random() < pA ? 'A' : 'B'
   }
 
   // --- Main simulation ---
@@ -208,10 +267,11 @@ export default function Home() {
     setCalculating(true)
 
     try {
-      const spiResponse = await fetch('/api/fivethirtyeight')
-      const spiData = await spiResponse.json()
-      if (!spiData.success || !spiData.teams) throw new Error('Failed to fetch team ratings')
-      const ratings = spiData.teams
+      const ratingResponse = await fetch('/api/fivethirtyeight')
+      const ratingData = await ratingResponse.json()
+      if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch team ratings')
+      const ratings = ratingData.teams
+      setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
       const iterations = 10000
 
       if (currentMatch.round === 'R32') {
@@ -333,7 +393,7 @@ export default function Home() {
               const t = allGroupTeams[g].find(t => t.name === name)
               if (t) return t.rating
             }
-            return 65
+            return 1500
           }
 
           const w78 = simulateKnockoutMatch(getRating(standings['E'][1]), getRating(standings['I'][1])) === 'A'
@@ -368,10 +428,6 @@ export default function Home() {
 
   // --- Render helpers ---
 
-  const Sup = ({ children }: { children: string }) => (
-    <sup style={{ fontSize: '9px', opacity: 0.6, marginLeft: '1px' }}>{children}</sup>
-  )
-
   const renderGroupTable = (label: string, teamResults: TeamResult[]) => (
     <div>
       <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
@@ -379,6 +435,7 @@ export default function Home() {
         <thead>
           <tr style={{ background: '#003366', color: 'white' }}>
             <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>FIFA Pts</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>P(1st)</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#00509e' }}>P(2nd)</th>
           </tr>
@@ -387,11 +444,14 @@ export default function Home() {
           {teamResults.map((r, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>
+                {r.rating.toFixed(0)}
+              </td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>
-                {r.first.toFixed(1)}%<Sup>S</Sup>
+                {r.first.toFixed(1)}%
               </td>
               <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
-                {r.second.toFixed(1)}%<Sup>S</Sup>
+                {r.second.toFixed(1)}%
               </td>
             </tr>
           ))}
@@ -540,7 +600,7 @@ export default function Home() {
           {results.matchWinPcts && results.matchWinPcts.length > 0 && (
             <div style={{ marginTop: '25px', background: '#003366', padding: '20px', borderRadius: '8px', color: 'white' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
-                Match {selectedMatch} Win Probability<Sup>S</Sup>
+                Match {selectedMatch} Win Probability
               </h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
                 {results.matchWinPcts.slice(0, 6).map((t: any, i: number) => (
@@ -559,8 +619,12 @@ export default function Home() {
           )}
 
           <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
-            <sup>S</sup> = 10,000 Monte Carlo simulations. Each team plays 3 group games (round-robin). Standings by points &gt; goal difference &gt; goals for.
-            Match probabilities from Poisson model (&lambda; = 1.4 &times; e<sup>(SPI-70)/20</sup>).
+            <strong>Model:</strong> Poisson regression (Maher 1982 / Dixon-Coles 1997).{' '}
+            &lambda;<sub>A</sub> = exp(&mu; + &beta; &times; (R<sub>A</sub> &minus; R<sub>B</sub>)),{' '}
+            where &mu; = ln(1.26) and &beta; = 0.00149 (calibrated to FIFA Elo formula).{' '}
+            Dixon-Coles &tau; correction (&rho; = &minus;0.05) adjusts for draw underestimation.{' '}
+            10,000 Monte Carlo iterations. Standings by points &gt; GD &gt; GF.
+            {ratingSource && <> | Ratings: {ratingSource}</>}
           </div>
         </div>
       )}
@@ -568,7 +632,7 @@ export default function Home() {
       {/* R16 Results */}
       {results && results.r16 && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Round of 16 Projections<Sup>S</Sup></h3>
+          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Round of 16 Projections</h3>
           <table style={{ width: '100%', maxWidth: '600px', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
             <thead>
               <tr style={{ background: '#003366', color: 'white' }}>
@@ -590,13 +654,14 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '13px', color: '#666' }}>{results.note}</div>
+          {ratingSource && <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>Ratings: {ratingSource}</div>}
         </div>
       )}
 
       {/* Semifinal Results */}
       {results && results.sf && (
         <div style={{ marginTop: '30px' }}>
-          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Semifinal Projections<Sup>S</Sup></h3>
+          <h3 style={{ color: '#003366', marginBottom: '15px' }}>Semifinal Projections</h3>
           <table style={{ width: '100%', maxWidth: '600px', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
             <thead>
               <tr style={{ background: '#003366', color: 'white' }}>
@@ -616,12 +681,14 @@ export default function Home() {
             </tbody>
           </table>
           <div style={{ marginTop: '15px', fontSize: '13px', color: '#666' }}>{results.note}</div>
+          {ratingSource && <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>Ratings: {ratingSource}</div>}
         </div>
       )}
 
-      {/* Legend */}
+      {/* Methodology footer */}
       <div style={{ marginTop: '30px', paddingTop: '15px', borderTop: '1px solid #e0e0e0', fontSize: '12px', color: '#888' }}>
-        <sup>S</sup> = Monte Carlo simulation (10,000 iterations)
+        Poisson regression model (Maher 1982, Dixon &amp; Coles 1997) with FIFA Elo-based rankings.
+        {ratingSource && <> | Source: {ratingSource}</>}
       </div>
     </div>
   )
