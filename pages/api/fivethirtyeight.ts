@@ -24,7 +24,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     "Switzerland": 75.9,
     "Mexico": 74.6,
     "USA": 73.8,
-    
+    "United States": 73.8,
+
     // Mid-tier competitive
     "Senegal": 72.4,
     "Morocco": 71.8,
@@ -35,6 +36,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     "Wales": 66.8,
     "Côte d'Ivoire": 66.1,
     "Serbia": 65.7,
+    "Egypt": 65.5,
+    "Paraguay": 65.0,
     "Austria": 65.2,
     "South Korea": 64.8,
     "Australia": 64.3,
@@ -58,9 +61,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     "Panama": 57.8,
     "Iraq": 57.4,
     "United Arab Emirates": 57.0,
+    "New Zealand": 57.0,
     "Play-off 1": 62.0,
     "Play-off 2": 60.0,
-    "Play-off 3": 58.0
+    "Play-off 3": 58.0,
+    "UEFA Playoff C": 62.0
   }
   
   res.status(200).json({ 
