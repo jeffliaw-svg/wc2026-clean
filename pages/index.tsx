@@ -95,143 +95,311 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
   ],
 }
 
-// ─── All 16 R32 Match Definitions ────────────────────────────────
-// "2A" = runner-up Group A, "1E" = winner Group E
-// type: 'runner' = both sides are runners-up (deterministic groups)
-// type: 'winner_vs_runner' = group winner vs specific runner-up
-// type: 'winner_vs_3rd' = group winner vs best 3rd (variable opponent)
-//   — for 3rd-place matches we simulate the winner's group only,
-//     since the 3rd-place opponent is uncertain pre-tournament.
-//     We approximate by averaging across the candidate 3rd-place pools.
-
-type R32Match = {
+// ─── Match type shared across all knockout rounds ────────────────
+type KnockoutMatch = {
   matchNum: number
   title: string
   date: string
   matchup: string
   venue: string
-  groups: [string, string]           // [groupA, groupB] that feed this match
-  posA: '1st' | '2nd'               // which finishing position from groupA
-  posB: '1st' | '2nd' | '3rd'       // which finishing position from groupB
-  type: 'runner' | 'winner_vs_runner' | 'winner_vs_3rd'
-  thirdPlacePools?: string[]         // candidate groups for 3rd-place qualifier
+  round: 'R32' | 'R16' | 'QF' | 'SF' | 'Final' | '3rd'
+  // R32-specific fields
+  groups?: [string, string]
+  posA?: '1st' | '2nd'
+  posB?: '1st' | '2nd' | '3rd'
+  type?: 'runner' | 'winner_vs_runner' | 'winner_vs_3rd'
+  thirdPlacePools?: string[]
+  // Later rounds: which prior matches feed this one
+  feedsFrom?: [number, number]
 }
 
-const r32Matches: R32Match[] = [
+// ─── Venue → city mapping for grouping ───────────────────────────
+const venueCity = (venue: string): string => {
+  if (venue.includes('AT&T Stadium')) return 'Dallas/Arlington, TX'
+  if (venue.includes('NRG Stadium')) return 'Houston, TX'
+  if (venue.includes('SoFi Stadium')) return 'Los Angeles, CA'
+  if (venue.includes('MetLife Stadium')) return 'New York/New Jersey'
+  if (venue.includes('Gillette Stadium')) return 'Boston/Foxborough, MA'
+  if (venue.includes('Hard Rock Stadium')) return 'Miami, FL'
+  if (venue.includes('Mercedes-Benz Stadium')) return 'Atlanta, GA'
+  if (venue.includes("Levi's Stadium")) return 'San Francisco/Santa Clara, CA'
+  if (venue.includes('Lumen Field')) return 'Seattle, WA'
+  if (venue.includes('Arrowhead Stadium')) return 'Kansas City, MO'
+  if (venue.includes('Lincoln Financial')) return 'Philadelphia, PA'
+  if (venue.includes('Estadio BBVA')) return 'Monterrey, Mexico'
+  if (venue.includes('Estadio Azteca') || venue.includes('Estadio Banorte')) return 'Mexico City, Mexico'
+  if (venue.includes('BMO Field')) return 'Toronto, Canada'
+  if (venue.includes('BC Place')) return 'Vancouver, Canada'
+  return venue
+}
+
+const isDallas = (venue: string): boolean => venue.includes('AT&T Stadium')
+
+// ─── All knockout matches ────────────────────────────────────────
+const allMatches: KnockoutMatch[] = [
+  // ── Round of 32 ──
   {
-    matchNum: 73, title: 'Match 73 \u2013 Round of 32',
+    matchNum: 73, title: 'Match 73 \u2013 Round of 32', round: 'R32',
     date: 'Sat, Jun 28 \u2022 3:00 PM ET',
     matchup: '2nd Group A vs 2nd Group B', venue: 'SoFi Stadium, Los Angeles, CA',
     groups: ['A', 'B'], posA: '2nd', posB: '2nd', type: 'runner',
   },
   {
-    matchNum: 74, title: 'Match 74 \u2013 Round of 32',
+    matchNum: 74, title: 'Match 74 \u2013 Round of 32', round: 'R32',
     date: 'Sun, Jun 29 \u2022 4:30 PM ET',
     matchup: '1st Group E vs 3rd Place', venue: 'Gillette Stadium, Foxborough, MA',
     groups: ['E', 'E'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['A', 'B', 'C', 'D', 'F'],
   },
   {
-    matchNum: 75, title: 'Match 75 \u2013 Round of 32',
+    matchNum: 75, title: 'Match 75 \u2013 Round of 32', round: 'R32',
     date: 'Sun, Jun 29 \u2022 9:00 PM ET',
     matchup: '1st Group F vs 2nd Group C', venue: 'Estadio BBVA, Monterrey, Mexico',
     groups: ['F', 'C'], posA: '1st', posB: '2nd', type: 'winner_vs_runner',
   },
   {
-    matchNum: 76, title: 'Match 76 \u2013 Round of 32',
+    matchNum: 76, title: 'Match 76 \u2013 Round of 32', round: 'R32',
     date: 'Sun, Jun 29 \u2022 1:00 PM ET',
     matchup: '1st Group C vs 2nd Group F', venue: 'NRG Stadium, Houston, TX',
     groups: ['C', 'F'], posA: '1st', posB: '2nd', type: 'winner_vs_runner',
   },
   {
-    matchNum: 77, title: 'Match 77 \u2013 Round of 32',
+    matchNum: 77, title: 'Match 77 \u2013 Round of 32', round: 'R32',
     date: 'Mon, Jun 30 \u2022 5:00 PM ET',
     matchup: '1st Group I vs 3rd Place', venue: 'MetLife Stadium, East Rutherford, NJ',
     groups: ['I', 'I'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['C', 'D', 'F', 'G', 'H'],
   },
   {
-    matchNum: 78, title: 'Match 78 \u2013 Round of 32',
+    matchNum: 78, title: 'Match 78 \u2013 Round of 32', round: 'R32',
     date: 'Mon, Jun 30 \u2022 1:00 PM ET',
     matchup: '2nd Group E vs 2nd Group I', venue: 'AT&T Stadium, Arlington, TX',
     groups: ['E', 'I'], posA: '2nd', posB: '2nd', type: 'runner',
   },
   {
-    matchNum: 79, title: 'Match 79 \u2013 Round of 32',
+    matchNum: 79, title: 'Match 79 \u2013 Round of 32', round: 'R32',
     date: 'Mon, Jun 30 \u2022 9:00 PM ET',
     matchup: '1st Group A vs 3rd Place', venue: 'Estadio Azteca, Mexico City, Mexico',
     groups: ['A', 'A'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['C', 'E', 'F', 'H', 'I'],
   },
   {
-    matchNum: 80, title: 'Match 80 \u2013 Round of 32',
+    matchNum: 80, title: 'Match 80 \u2013 Round of 32', round: 'R32',
     date: 'Tue, Jul 1 \u2022 12:00 PM ET',
     matchup: '1st Group L vs 3rd Place', venue: 'Mercedes-Benz Stadium, Atlanta, GA',
     groups: ['L', 'L'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['E', 'H', 'I', 'J', 'K'],
   },
   {
-    matchNum: 81, title: 'Match 81 \u2013 Round of 32',
+    matchNum: 81, title: 'Match 81 \u2013 Round of 32', round: 'R32',
     date: 'Tue, Jul 1 \u2022 8:00 PM ET',
     matchup: '1st Group D vs 3rd Place', venue: "Levi's Stadium, Santa Clara, CA",
     groups: ['D', 'D'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['B', 'E', 'F', 'I', 'J'],
   },
   {
-    matchNum: 82, title: 'Match 82 \u2013 Round of 32',
+    matchNum: 82, title: 'Match 82 \u2013 Round of 32', round: 'R32',
     date: 'Tue, Jul 1 \u2022 4:00 PM ET',
     matchup: '1st Group G vs 3rd Place', venue: 'Lumen Field, Seattle, WA',
     groups: ['G', 'G'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['A', 'E', 'H', 'I', 'J'],
   },
   {
-    matchNum: 83, title: 'Match 83 \u2013 Round of 32',
+    matchNum: 83, title: 'Match 83 \u2013 Round of 32', round: 'R32',
     date: 'Wed, Jul 2 \u2022 7:00 PM ET',
     matchup: '2nd Group K vs 2nd Group L', venue: 'BMO Field, Toronto, Canada',
     groups: ['K', 'L'], posA: '2nd', posB: '2nd', type: 'runner',
   },
   {
-    matchNum: 84, title: 'Match 84 \u2013 Round of 32',
+    matchNum: 84, title: 'Match 84 \u2013 Round of 32', round: 'R32',
     date: 'Wed, Jul 2 \u2022 3:00 PM ET',
     matchup: '1st Group H vs 2nd Group J', venue: 'SoFi Stadium, Los Angeles, CA',
     groups: ['H', 'J'], posA: '1st', posB: '2nd', type: 'winner_vs_runner',
   },
   {
-    matchNum: 85, title: 'Match 85 \u2013 Round of 32',
+    matchNum: 85, title: 'Match 85 \u2013 Round of 32', round: 'R32',
     date: 'Wed, Jul 2 \u2022 11:00 PM ET',
     matchup: '1st Group B vs 3rd Place', venue: 'BC Place, Vancouver, Canada',
     groups: ['B', 'B'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['E', 'F', 'G', 'I', 'J'],
   },
   {
-    matchNum: 86, title: 'Match 86 \u2013 Round of 32',
+    matchNum: 86, title: 'Match 86 \u2013 Round of 32', round: 'R32',
     date: 'Thu, Jul 3 \u2022 6:00 PM ET',
     matchup: '1st Group J vs 2nd Group H', venue: 'Hard Rock Stadium, Miami, FL',
     groups: ['J', 'H'], posA: '1st', posB: '2nd', type: 'winner_vs_runner',
   },
   {
-    matchNum: 87, title: 'Match 87 \u2013 Round of 32',
+    matchNum: 87, title: 'Match 87 \u2013 Round of 32', round: 'R32',
     date: 'Thu, Jul 3 \u2022 9:30 PM ET',
     matchup: '1st Group K vs 3rd Place', venue: 'Arrowhead Stadium, Kansas City, MO',
     groups: ['K', 'K'], posA: '1st', posB: '3rd', type: 'winner_vs_3rd',
     thirdPlacePools: ['D', 'E', 'I', 'J', 'L'],
   },
   {
-    matchNum: 88, title: 'Match 88 \u2013 Round of 32',
+    matchNum: 88, title: 'Match 88 \u2013 Round of 32', round: 'R32',
     date: 'Thu, Jul 3 \u2022 2:00 PM ET',
     matchup: '2nd Group D vs 2nd Group G', venue: 'AT&T Stadium, Arlington, TX',
     groups: ['D', 'G'], posA: '2nd', posB: '2nd', type: 'runner',
   },
+
+  // ── Round of 16 ──
+  {
+    matchNum: 89, title: 'Match 89 \u2013 Round of 16', round: 'R16',
+    date: 'Sat, Jul 4 \u2022 5:00 PM ET',
+    matchup: 'Winner M74 vs Winner M77', venue: 'Lincoln Financial Field, Philadelphia, PA',
+    feedsFrom: [74, 77],
+  },
+  {
+    matchNum: 90, title: 'Match 90 \u2013 Round of 16', round: 'R16',
+    date: 'Sat, Jul 4 \u2022 1:00 PM ET',
+    matchup: 'Winner M73 vs Winner M75', venue: 'NRG Stadium, Houston, TX',
+    feedsFrom: [73, 75],
+  },
+  {
+    matchNum: 91, title: 'Match 91 \u2013 Round of 16', round: 'R16',
+    date: 'Sun, Jul 5 \u2022 4:00 PM ET',
+    matchup: 'Winner M76 vs Winner M78', venue: 'MetLife Stadium, East Rutherford, NJ',
+    feedsFrom: [76, 78],
+  },
+  {
+    matchNum: 92, title: 'Match 92 \u2013 Round of 16', round: 'R16',
+    date: 'Sun, Jul 5 \u2022 8:00 PM ET',
+    matchup: 'Winner M79 vs Winner M80', venue: 'Estadio Azteca, Mexico City, Mexico',
+    feedsFrom: [79, 80],
+  },
+  {
+    matchNum: 93, title: 'Match 93 \u2013 Round of 16', round: 'R16',
+    date: 'Mon, Jul 6 \u2022 3:00 PM ET',
+    matchup: 'Winner M83 vs Winner M84', venue: 'AT&T Stadium, Arlington, TX',
+    feedsFrom: [83, 84],
+  },
+  {
+    matchNum: 94, title: 'Match 94 \u2013 Round of 16', round: 'R16',
+    date: 'Mon, Jul 6 \u2022 8:00 PM ET',
+    matchup: 'Winner M81 vs Winner M82', venue: 'Lumen Field, Seattle, WA',
+    feedsFrom: [81, 82],
+  },
+  {
+    matchNum: 95, title: 'Match 95 \u2013 Round of 16', round: 'R16',
+    date: 'Tue, Jul 7 \u2022 12:00 PM ET',
+    matchup: 'Winner M86 vs Winner M88', venue: 'Mercedes-Benz Stadium, Atlanta, GA',
+    feedsFrom: [86, 88],
+  },
+  {
+    matchNum: 96, title: 'Match 96 \u2013 Round of 16', round: 'R16',
+    date: 'Tue, Jul 7 \u2022 4:00 PM ET',
+    matchup: 'Winner M85 vs Winner M87', venue: 'BC Place, Vancouver, Canada',
+    feedsFrom: [85, 87],
+  },
+
+  // ── Quarterfinals ──
+  {
+    matchNum: 97, title: 'Match 97 \u2013 Quarterfinal', round: 'QF',
+    date: 'Wed, Jul 9 \u2022 4:00 PM ET',
+    matchup: 'Winner M89 vs Winner M90', venue: 'Gillette Stadium, Foxborough, MA',
+    feedsFrom: [89, 90],
+  },
+  {
+    matchNum: 98, title: 'Match 98 \u2013 Quarterfinal', round: 'QF',
+    date: 'Thu, Jul 10 \u2022 3:00 PM ET',
+    matchup: 'Winner M93 vs Winner M94', venue: 'SoFi Stadium, Los Angeles, CA',
+    feedsFrom: [93, 94],
+  },
+  {
+    matchNum: 99, title: 'Match 99 \u2013 Quarterfinal', round: 'QF',
+    date: 'Fri, Jul 11 \u2022 5:00 PM ET',
+    matchup: 'Winner M91 vs Winner M92', venue: 'Hard Rock Stadium, Miami, FL',
+    feedsFrom: [91, 92],
+  },
+  {
+    matchNum: 100, title: 'Match 100 \u2013 Quarterfinal', round: 'QF',
+    date: 'Fri, Jul 11 \u2022 9:00 PM ET',
+    matchup: 'Winner M95 vs Winner M96', venue: 'Arrowhead Stadium, Kansas City, MO',
+    feedsFrom: [95, 96],
+  },
+
+  // ── Semifinals ──
+  {
+    matchNum: 101, title: 'Match 101 \u2013 Semifinal', round: 'SF',
+    date: 'Tue, Jul 14 \u2022 3:00 PM ET',
+    matchup: 'Winner QF97 vs Winner QF98', venue: 'AT&T Stadium, Arlington, TX',
+    feedsFrom: [97, 98],
+  },
+  {
+    matchNum: 102, title: 'Match 102 \u2013 Semifinal', round: 'SF',
+    date: 'Wed, Jul 15 \u2022 3:00 PM ET',
+    matchup: 'Winner QF99 vs Winner QF100', venue: 'Mercedes-Benz Stadium, Atlanta, GA',
+    feedsFrom: [99, 100],
+  },
+
+  // ── 3rd Place & Final ──
+  {
+    matchNum: 103, title: 'Match 103 \u2013 3rd Place', round: '3rd',
+    date: 'Sat, Jul 18 \u2022 5:00 PM ET',
+    matchup: 'Loser SF101 vs Loser SF102', venue: 'Hard Rock Stadium, Miami, FL',
+    feedsFrom: [101, 102],
+  },
+  {
+    matchNum: 104, title: 'Match 104 \u2013 FINAL', round: 'Final',
+    date: 'Sun, Jul 19 \u2022 3:00 PM ET',
+    matchup: 'Winner SF101 vs Winner SF102', venue: 'MetLife Stadium, East Rutherford, NJ',
+    feedsFrom: [101, 102],
+  },
 ]
 
+// Separate R32 matches for simulation (they have group data)
+const r32Matches = allMatches.filter(m => m.round === 'R32')
+
+// Group matches by city for the selector
+const groupMatchesByCity = (matches: KnockoutMatch[]) => {
+  const grouped: Record<string, KnockoutMatch[]> = {}
+  for (const m of matches) {
+    const city = venueCity(m.venue)
+    if (!grouped[city]) grouped[city] = []
+    grouped[city].push(m)
+  }
+  // Sort: Dallas first, then alphabetically
+  const entries = Object.entries(grouped)
+  entries.sort(([a], [b]) => {
+    if (a.includes('Dallas')) return -1
+    if (b.includes('Dallas')) return 1
+    return a.localeCompare(b)
+  })
+  return entries
+}
+
+// Round labels and colors
+const roundLabel: Record<string, string> = {
+  R32: 'Round of 32',
+  R16: 'Round of 16',
+  QF: 'Quarterfinals',
+  SF: 'Semifinals',
+  '3rd': '3rd Place',
+  Final: 'Final',
+}
+
+const roundColor: Record<string, string> = {
+  R32: '#003366',
+  R16: '#1a5276',
+  QF: '#6c3483',
+  SF: '#b7950b',
+  '3rd': '#666',
+  Final: '#c0392b',
+}
+
 export default function Home() {
-  const [selectedMatch, setSelectedMatch] = useState<number>(73)
+  const [selectedMatch, setSelectedMatch] = useState<number>(78) // Default to Dallas match
+  const [selectedRound, setSelectedRound] = useState<string>('R32')
+  const [showOtherLocations, setShowOtherLocations] = useState(false)
   const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
 
-  const currentMatch = r32Matches.find(m => m.matchNum === selectedMatch)!
+  const roundMatches = allMatches.filter(m => m.round === selectedRound)
+  const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
+  const isR32 = selectedRound === 'R32'
 
   // ============================================================
   // Poisson Goal Model — Maher 1982 / Dixon & Coles 1997
@@ -348,6 +516,7 @@ export default function Home() {
   // ─── Main Simulation ──────────────────────────────────────────
 
   const runSimulation = async () => {
+    if (!isR32) return // Only R32 has simulation for now
     setCalculating(true)
 
     try {
@@ -360,13 +529,11 @@ export default function Home() {
       const iterations = 10000
       const match = currentMatch
 
-      // Resolve live ratings for a group
       const resolveGroup = (groupId: string) =>
         groupTeams[groupId].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
 
       if (match.type === 'runner') {
-        // ── Runner-up vs Runner-up (Matches 73, 78, 83, 88) ──
-        const [gA, gB] = match.groups
+        const [gA, gB] = match.groups!
         const teamsA = resolveGroup(gA)
         const teamsB = resolveGroup(gB)
 
@@ -415,8 +582,7 @@ export default function Home() {
         })
 
       } else if (match.type === 'winner_vs_runner') {
-        // ── Winner vs Runner-up (Matches 75, 76, 84, 86) ──
-        const [gA, gB] = match.groups
+        const [gA, gB] = match.groups!
         const teamsA = resolveGroup(gA)
         const teamsB = resolveGroup(gB)
 
@@ -433,9 +599,8 @@ export default function Home() {
           const standingsB = simulateGroup(teamsB)
           standingsA.forEach((team, pos) => positionsA[team.name][pos]++)
           standingsB.forEach((team, pos) => positionsB[team.name][pos]++)
-          // posA='1st' from groupA, posB='2nd' from groupB
-          const winnerTeam = standingsA[0]   // 1st place
-          const runnerTeam = standingsB[1]   // 2nd place
+          const winnerTeam = standingsA[0]
+          const runnerTeam = standingsB[1]
           const winner = simulateKnockoutMatch(winnerTeam.rating, runnerTeam.rating)
           matchWins[winner === 'A' ? winnerTeam.name : runnerTeam.name]++
         }
@@ -466,12 +631,7 @@ export default function Home() {
         })
 
       } else {
-        // ── Winner vs 3rd Place (Matches 74, 77, 79, 80, 81, 82, 85, 87) ──
-        // We simulate the winner's group fully, and approximate the 3rd-place
-        // opponent by simulating each candidate pool group and using its 3rd-place
-        // finisher. For each iteration, we randomly pick one of the candidate groups
-        // to supply the 3rd-place team.
-        const gA = match.groups[0]
+        const gA = match.groups![0]
         const teamsA = resolveGroup(gA)
         const pools = match.thirdPlacePools || []
         const poolTeams = pools.map(g => resolveGroup(g))
@@ -487,10 +647,9 @@ export default function Home() {
           const standingsA = simulateGroup(teamsA)
           standingsA.forEach((team, pos) => positionsA[team.name][pos]++)
 
-          // Pick random candidate pool and simulate its group for 3rd place
           const poolIdx = Math.floor(Math.random() * poolTeams.length)
           const standingsPool = simulateGroup(poolTeams[poolIdx])
-          const thirdTeam = standingsPool[2] // 3rd place
+          const thirdTeam = standingsPool[2]
 
           thirdPlaceAppearances[thirdTeam.name] = (thirdPlaceAppearances[thirdTeam.name] || 0) + 1
 
@@ -512,7 +671,6 @@ export default function Home() {
             fourth: (positions[team.name][3] / iterations) * 100,
           })).sort((a, b) => b.first - a.first)
 
-        // Build win probabilities: group winner candidates + 3rd place opponents
         const allWinPcts: { name: string; pct: number }[] = []
         teamsA.forEach(t => {
           if (matchWins[t.name]) allWinPcts.push({ name: t.name, pct: (matchWins[t.name] / iterations) * 100 })
@@ -522,7 +680,6 @@ export default function Home() {
         })
         allWinPcts.sort((a, b) => b.pct - a.pct)
 
-        // 3rd-place opponent breakdown
         const thirdOppPcts = Object.entries(thirdPlaceAppearances)
           .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
           .sort((a, b) => b.pct - a.pct)
@@ -544,6 +701,23 @@ export default function Home() {
     }
 
     setCalculating(false)
+  }
+
+  // ─── Bracket path helper ───────────────────────────────────────
+  const getBracketPath = (match: KnockoutMatch): string[] => {
+    if (!match.feedsFrom) return []
+    const path: string[] = []
+    for (const feedNum of match.feedsFrom) {
+      const feeder = allMatches.find(m => m.matchNum === feedNum)
+      if (feeder) {
+        if (feeder.round === 'R32') {
+          path.push(`M${feedNum}: ${feeder.matchup} (${venueCity(feeder.venue)})`)
+        } else {
+          path.push(`M${feedNum}: ${feeder.matchup} @ ${venueCity(feeder.venue)}`)
+        }
+      }
+    }
+    return path
   }
 
   // ─── Render Helpers ────────────────────────────────────────────
@@ -604,85 +778,209 @@ export default function Home() {
 
   // ─── Render ────────────────────────────────────────────────────
 
+  const grouped = groupMatchesByCity(roundMatches)
+  const dallasMatches = grouped.filter(([city]) => city.includes('Dallas'))
+  const otherMatches = grouped.filter(([city]) => !city.includes('Dallas'))
+
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <Head>
-        <title>WC 2026 R32 Tracker</title>
+        <title>WC 2026 Knockout Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <h1 style={{ color: '#003366', fontSize: '28px', marginBottom: '5px' }}>
-        2026 World Cup &mdash; Round of 32 Tracker
+        2026 World Cup &mdash; Knockout Stage Tracker
       </h1>
       <p style={{ color: '#666', fontSize: '14px', marginTop: 0, marginBottom: '20px' }}>
-        All 16 knockout matches &bull; Poisson simulation &bull; 10,000 iterations
+        R32 through Final &bull; Poisson simulation &bull; 10,000 iterations
       </p>
 
-      {/* ── Match selector grid ── */}
-      <div style={{ marginBottom: '25px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px' }}>
-        {r32Matches.map(m => (
+      {/* ── Round selector tabs ── */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {(['R32', 'R16', 'QF', 'SF', 'Final'] as const).map(round => (
           <button
-            key={m.matchNum}
-            onClick={() => { setSelectedMatch(m.matchNum); setResults(null); setShowDetail(false) }}
+            key={round}
+            onClick={() => {
+              setSelectedRound(round)
+              const firstInRound = allMatches.find(m => m.round === round)
+              if (firstInRound) { setSelectedMatch(firstInRound.matchNum); setResults(null); setShowDetail(false) }
+            }}
             style={{
-              padding: '8px 10px',
-              background: selectedMatch === m.matchNum ? '#003366' : '#f5f5f5',
-              color: selectedMatch === m.matchNum ? 'white' : '#003366',
-              border: `2px solid ${selectedMatch === m.matchNum ? '#003366' : '#ccc'}`,
-              borderRadius: '8px',
+              padding: '8px 16px',
+              background: selectedRound === round ? roundColor[round] : 'white',
+              color: selectedRound === round ? 'white' : roundColor[round],
+              border: `2px solid ${roundColor[round]}`,
+              borderRadius: '6px',
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 'bold',
-              textAlign: 'left',
             }}
           >
-            <div>M{m.matchNum}</div>
-            <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
-              {m.matchup.replace('vs ', 'v ')}
-            </div>
+            {roundLabel[round]}
           </button>
         ))}
       </div>
 
+      {/* ── Match selector grouped by city ── */}
+      <div style={{ marginBottom: '25px' }}>
+        {/* Dallas section */}
+        {dallasMatches.length > 0 && (
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#0d6efd', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>
+              AT&T Stadium &mdash; Dallas/Arlington, TX
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px' }}>
+              {dallasMatches.flatMap(([, matches]) => matches).map(m => (
+                <button
+                  key={m.matchNum}
+                  onClick={() => { setSelectedMatch(m.matchNum); setResults(null); setShowDetail(false) }}
+                  style={{
+                    padding: '8px 10px',
+                    background: selectedMatch === m.matchNum ? '#0d6efd' : '#e8f0fe',
+                    color: selectedMatch === m.matchNum ? 'white' : '#0d6efd',
+                    border: `2px solid ${selectedMatch === m.matchNum ? '#0d6efd' : '#90b8f8'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== 'R32' ? m.round : ''}</span></div>
+                  <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
+                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Toggle for other locations */}
+        {otherMatches.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#666' }}>
+              <div
+                onClick={() => setShowOtherLocations(!showOtherLocations)}
+                style={{
+                  width: '40px', height: '22px', borderRadius: '11px',
+                  background: showOtherLocations ? '#003366' : '#ccc',
+                  position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
+                }}
+              >
+                <div style={{
+                  width: '18px', height: '18px', borderRadius: '50%', background: 'white',
+                  position: 'absolute', top: '2px',
+                  left: showOtherLocations ? '20px' : '2px',
+                  transition: 'left 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                }} />
+              </div>
+              <span onClick={() => setShowOtherLocations(!showOtherLocations)}>
+                {showOtherLocations ? 'Other locations:' : 'Show other locations'}
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Other locations (hidden by default) */}
+        {showOtherLocations && otherMatches.map(([city, matches]) => (
+          <div key={city} style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>
+              {city}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px' }}>
+              {matches.map(m => (
+                <button
+                  key={m.matchNum}
+                  onClick={() => { setSelectedMatch(m.matchNum); setResults(null); setShowDetail(false) }}
+                  style={{
+                    padding: '8px 10px',
+                    background: selectedMatch === m.matchNum ? '#003366' : '#f5f5f5',
+                    color: selectedMatch === m.matchNum ? 'white' : '#003366',
+                    border: `2px solid ${selectedMatch === m.matchNum ? '#003366' : '#ccc'}`,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== selectedRound ? m.round : ''}</span></div>
+                  <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
+                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* ── Match info card ── */}
-      <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '25px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#003366' }}>{currentMatch.title}</div>
+      <div style={{
+        background: isDallas(currentMatch.venue) ? '#e8f0fe' : '#f5f5f5',
+        padding: '20px', borderRadius: '8px', marginBottom: '25px',
+        borderLeft: isDallas(currentMatch.venue) ? '4px solid #0d6efd' : '4px solid #ccc',
+      }}>
+        <div style={{ fontWeight: 'bold', fontSize: '18px', color: isDallas(currentMatch.venue) ? '#0d6efd' : '#003366' }}>
+          {currentMatch.title}
+        </div>
         <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>{currentMatch.date}</div>
         <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.matchup}</div>
-        <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>{currentMatch.venue}</div>
+        <div style={{ fontSize: '14px', color: isDallas(currentMatch.venue) ? '#0d6efd' : '#666', marginTop: '4px', fontWeight: isDallas(currentMatch.venue) ? 'bold' : 'normal' }}>
+          {currentMatch.venue}
+        </div>
         {currentMatch.type === 'winner_vs_3rd' && currentMatch.thirdPlacePools && (
           <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
             3rd-place opponent from: Groups {currentMatch.thirdPlacePools.join(', ')}
           </div>
         )}
+        {/* Bracket path for later rounds */}
+        {currentMatch.feedsFrom && (
+          <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(0,0,0,0.04)', borderRadius: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>
+              Bracket Path
+            </div>
+            {getBracketPath(currentMatch).map((line, i) => (
+              <div key={i} style={{ fontSize: '12px', color: '#555', marginTop: '2px' }}>{line}</div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── Run simulation button ── */}
-      <button
-        onClick={runSimulation}
-        disabled={calculating}
-        style={{
-          padding: '15px 30px',
-          background: calculating ? '#ccc' : '#003366',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: calculating ? 'not-allowed' : 'pointer',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          width: '100%',
-          maxWidth: '400px',
-        }}
-      >
-        {calculating ? 'Calculating...' : 'Run Simulation (10,000 iterations)'}
-      </button>
+      {/* ── Run simulation button (R32 only for now) ── */}
+      {isR32 ? (
+        <button
+          onClick={runSimulation}
+          disabled={calculating}
+          style={{
+            padding: '15px 30px',
+            background: calculating ? '#ccc' : '#003366',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: calculating ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {calculating ? 'Calculating...' : 'Run Simulation (10,000 iterations)'}
+        </button>
+      ) : (
+        <div style={{ padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404', fontSize: '14px' }}>
+          <strong>{roundLabel[selectedRound]}</strong> simulation coming soon. Currently, select any Round of 32 match to run group-stage Monte Carlo simulations. Later rounds will chain R32 results forward through the bracket.
+        </div>
+      )}
 
-      {/* ── Results ── */}
-      {results && (
+      {/* ── Results (R32) ── */}
+      {results && isR32 && (
         <div style={{ marginTop: '30px' }}>
           <h3 style={{ color: '#003366', marginBottom: '20px' }}>Group Stage Probabilities</h3>
 
-          {/* Two-group layout for runner/winner_vs_runner, single-group for 3rd place */}
           {results.groupB ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
               {renderGroupTable(results.groupALabel, results.groupA)}
@@ -694,7 +992,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 3rd-place opponent breakdown */}
           {results.thirdPlaceOpponents && (
             <div style={{ marginTop: '20px', maxWidth: '550px' }}>
               <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '16px' }}>
@@ -719,7 +1016,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Toggle detail */}
           <button
             onClick={() => setShowDetail(!showDetail)}
             style={{
@@ -738,7 +1034,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Match win probabilities */}
           {results.matchWinPcts && results.matchWinPcts.length > 0 && (
             <div style={{ marginTop: '25px', background: '#003366', padding: '20px', borderRadius: '8px', color: 'white' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
