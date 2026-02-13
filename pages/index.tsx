@@ -432,6 +432,7 @@ export default function Home() {
   const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
@@ -1102,22 +1103,39 @@ export default function Home() {
           </div>
         ))}
 
-        {/* 3rd-place footnotes for R32 */}
-        {isR32 && (
-          <div style={{ marginTop: '10px', fontSize: '11px', color: '#888', lineHeight: '1.8' }}>
-            {Object.entries(thirdPlaceFootnotes).map(([matchNum, fn]) => (
-              <div key={matchNum}>
-                <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: vs 3rd place from Group {fn.pools.join(', ')}
-              </div>
-            ))}
-            <div style={{ marginTop: '6px', fontStyle: 'italic', fontSize: '10px', color: '#aaa' }}>
-              8 of 12 third-place finishers advance. The specific assignment of which 3rd-place team faces which
-              group winner is determined by which combination of 8 groups produce qualifying 3rd-place teams
-              (FIFA Regulations Annex C, 495 possible combinations). A group&apos;s 3rd-place team may appear in multiple
-              potential matchups above but will be assigned to exactly one.
+        {/* 3rd-place footnotes for R32 — only show relevant ones */}
+        {isR32 && (() => {
+          // Collect match numbers currently visible on screen
+          const visibleMatchNums = new Set<number>()
+          dallasMatches.flatMap(([, ms]) => ms).forEach(m => visibleMatchNums.add(m.matchNum))
+          if (showOtherLocations) otherMatches.flatMap(([, ms]) => ms).forEach(m => visibleMatchNums.add(m.matchNum))
+          const relevantFootnotes = Object.entries(thirdPlaceFootnotes)
+            .filter(([matchNum]) => visibleMatchNums.has(Number(matchNum)))
+          if (relevantFootnotes.length === 0) return null
+          return (
+            <div style={{ marginTop: '8px' }}>
+              <span
+                onClick={() => setShowNotes(!showNotes)}
+                style={{ fontSize: '11px', color: '#999', cursor: 'pointer', userSelect: 'none' }}
+              >
+                {showNotes ? '\u25BC' : '\u25B6'} 3rd-place notes ({relevantFootnotes.length})
+              </span>
+              {showNotes && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: '#888', lineHeight: '1.8', paddingLeft: '4px' }}>
+                  {relevantFootnotes.map(([matchNum, fn]) => (
+                    <div key={matchNum}>
+                      <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: vs 3rd place from Group {fn.pools.join(', ')}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '10px', color: '#aaa' }}>
+                    8 of 12 third-place finishers advance. Exact assignment depends on which combination of 8 groups
+                    produce qualifying 3rd-place teams (FIFA Regulations Annex C, 495 combinations).
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {/* ── Match info card ── */}
