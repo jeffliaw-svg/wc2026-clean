@@ -1107,9 +1107,15 @@ export default function Home() {
           <div style={{ marginTop: '10px', fontSize: '11px', color: '#888', lineHeight: '1.8' }}>
             {Object.entries(thirdPlaceFootnotes).map(([matchNum, fn]) => (
               <div key={matchNum}>
-                <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: 3rd-place team from Group {fn.pools.join(' or ')} (best record among 3rd-place finishers)
+                <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: vs 3rd place from Group {fn.pools.join(', ')}
               </div>
             ))}
+            <div style={{ marginTop: '6px', fontStyle: 'italic', fontSize: '10px', color: '#aaa' }}>
+              8 of 12 third-place finishers advance. The specific assignment of which 3rd-place team faces which
+              group winner is determined by which combination of 8 groups produce qualifying 3rd-place teams
+              (FIFA Regulations Annex C, 495 possible combinations). A group&apos;s 3rd-place team may appear in multiple
+              potential matchups above but will be assigned to exactly one.
+            </div>
           </div>
         )}
       </div>
@@ -1131,8 +1137,8 @@ export default function Home() {
         {currentMatch.type === 'winner_vs_3rd' && currentMatch.thirdPlacePools && (
           <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
             <sup style={{ fontWeight: 'bold' }}>{thirdPlaceFootnotes[currentMatch.matchNum]?.sup}</sup>{' '}
-            3rd-place team from Group {currentMatch.thirdPlacePools.join(' or ')}{' '}
-            &mdash; one of the 8 best 3rd-place finishers (ranked by points, then goal difference)
+            Opponent will be the 3rd-place team from Group {currentMatch.thirdPlacePools.join(', ')}{' '}
+            &mdash; exact assignment depends on which 8 of 12 third-place teams qualify (FIFA Annex C)
           </div>
         )}
         {/* Bracket path for later rounds */}
