@@ -400,6 +400,8 @@ export default function Home() {
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
   const isR32 = selectedRound === 'R32'
+  const isR16 = selectedRound === 'R16'
+  const canSimulate = isR32 || isR16
 
   // ============================================================
   // Poisson Goal Model — Maher 1982 / Dixon & Coles 1997
@@ -516,7 +518,7 @@ export default function Home() {
   // ─── Main Simulation ──────────────────────────────────────────
 
   const runSimulation = async () => {
-    if (!isR32) return // Only R32 has simulation for now
+    if (!canSimulate) return
     setCalculating(true)
 
     try {
@@ -574,8 +576,8 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA} (2nd advances)`,
-          groupBLabel: `Group ${gB} (2nd advances)`,
+          groupALabel: `Group ${gA} (Runner-Up)`,
+          groupBLabel: `Group ${gB} (Runner-Up)`,
           highlightA: '2nd' as const,
           highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
@@ -625,8 +627,8 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA} (1st advances)`,
-          groupBLabel: `Group ${gB} (2nd advances)`,
+          groupALabel: `Group ${gA} (Winner)`,
+          groupBLabel: `Group ${gB} (Runner-Up)`,
           highlightA: '1st' as const,
           highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
@@ -634,7 +636,7 @@ export default function Home() {
           matchProbsB: calcGroupMatchProbs(teamsB),
         })
 
-      } else {
+      } else if (match.type === 'winner_vs_3rd') {
         const gA = match.groups![0]
         const teamsA = resolveGroup(gA)
         const pools = match.thirdPlacePools || []
@@ -691,12 +693,76 @@ export default function Home() {
 
         setResults({
           groupA: toResults(teamsA, positionsA),
-          groupALabel: `Group ${gA} (1st advances)`,
+          groupALabel: `Group ${gA} (Winner)`,
           highlightA: '1st' as const,
           matchWinPcts: allWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           thirdPlaceOpponents: thirdOppPcts,
           thirdPlacePools: pools,
+        })
+      }
+      // ── R16 simulation ──────────────────────────────────────────
+      if (currentMatch.round === 'R16' && currentMatch.feedsFrom) {
+        const [feedNumA, feedNumB] = currentMatch.feedsFrom
+        const r32A = allMatches.find(m => m.matchNum === feedNumA)!
+        const r32B = allMatches.find(m => m.matchNum === feedNumB)!
+
+        // Helper: simulate one R32 match and return the winner
+        const simulateR32Winner = (r32: KnockoutMatch): { name: string; rating: number } => {
+          if (r32.type === 'runner') {
+            const [gA, gB] = r32.groups!
+            const sA = simulateGroup(resolveGroup(gA))
+            const sB = simulateGroup(resolveGroup(gB))
+            const w = simulateKnockoutMatch(sA[1].rating, sB[1].rating)
+            return w === 'A' ? sA[1] : sB[1]
+          } else if (r32.type === 'winner_vs_runner') {
+            const [gA, gB] = r32.groups!
+            const sA = simulateGroup(resolveGroup(gA))
+            const sB = simulateGroup(resolveGroup(gB))
+            const w = simulateKnockoutMatch(sA[0].rating, sB[1].rating)
+            return w === 'A' ? sA[0] : sB[1]
+          } else {
+            // winner_vs_3rd
+            const gA = r32.groups![0]
+            const pools = r32.thirdPlacePools || []
+            const sA = simulateGroup(resolveGroup(gA))
+            const poolIdx = Math.floor(Math.random() * pools.length)
+            const sPool = simulateGroup(resolveGroup(pools[poolIdx]))
+            const w = simulateKnockoutMatch(sA[0].rating, sPool[2].rating)
+            return w === 'A' ? sA[0] : sPool[2]
+          }
+        }
+
+        const advancesA: Record<string, number> = {}
+        const advancesB: Record<string, number> = {}
+        const r16Wins: Record<string, number> = {}
+
+        for (let i = 0; i < iterations; i++) {
+          const wA = simulateR32Winner(r32A)
+          const wB = simulateR32Winner(r32B)
+          advancesA[wA.name] = (advancesA[wA.name] || 0) + 1
+          advancesB[wB.name] = (advancesB[wB.name] || 0) + 1
+          const r16w = simulateKnockoutMatch(wA.rating, wB.rating)
+          const winnerName = r16w === 'A' ? wA.name : wB.name
+          r16Wins[winnerName] = (r16Wins[winnerName] || 0) + 1
+        }
+
+        const toSide = (adv: Record<string, number>) =>
+          Object.entries(adv)
+            .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+            .sort((a, b) => b.pct - a.pct)
+
+        const winPcts = Object.entries(r16Wins)
+          .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+          .sort((a, b) => b.pct - a.pct)
+
+        setResults({
+          type: 'R16',
+          sideA: toSide(advancesA),
+          sideB: toSide(advancesB),
+          sideALabel: `From M${feedNumA}: ${getMatchButtonLabel(r32A)}`,
+          sideBLabel: `From M${feedNumB}: ${getMatchButtonLabel(r32B)}`,
+          matchWinPcts: winPcts,
         })
       }
     } catch (error) {
@@ -728,9 +794,12 @@ export default function Home() {
   // ─── Button label helper ─────────────────────────────────────
   const getMatchButtonLabel = (m: KnockoutMatch): string => {
     if (m.round === 'R32' && m.groups) {
-      if (m.type === 'runner') return `Grp ${m.groups[0]} 2nd v Grp ${m.groups[1]} 2nd`
-      if (m.type === 'winner_vs_runner') return `Grp ${m.groups[0]} 1st v Grp ${m.groups[1]} 2nd`
-      if (m.type === 'winner_vs_3rd') return `Grp ${m.groups[0]} 1st v Best 3rd`
+      if (m.type === 'runner') return `Group ${m.groups[0]} 2nd v Group ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_runner') return `Group ${m.groups[0]} Winner v Group ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_3rd') return `Group ${m.groups[0]} Winner v 3rd*`
+    }
+    if (m.round === 'R16' && m.feedsFrom) {
+      return `W M${m.feedsFrom[0]} v W M${m.feedsFrom[1]}`
     }
     return m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')
   }
@@ -759,6 +828,30 @@ export default function Home() {
               </td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', ...(highlightCol === '2nd' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
                 {r.second.toFixed(1)}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
+  const renderAdvanceTable = (label: string, teams: { name: string; pct: number }[]) => (
+    <div>
+      <h4 style={{ color: '#1a5276', marginBottom: '10px', fontSize: '16px' }}>{label}</h4>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+        <thead>
+          <tr style={{ background: '#1a5276', color: 'white' }}>
+            <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#1f6f8b' }}>P(Advance)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {teams.map((t, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{t.name}</td>
+              <td style={{ padding: '10px', textAlign: 'right', color: '#1a5276', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+                {t.pct.toFixed(1)}%
               </td>
             </tr>
           ))}
@@ -951,7 +1044,8 @@ export default function Home() {
         </div>
         {currentMatch.type === 'winner_vs_3rd' && currentMatch.thirdPlacePools && (
           <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-            3rd-place opponent from: Groups {currentMatch.thirdPlacePools.join(', ')}
+            * 3rd Place team from Group {currentMatch.thirdPlacePools.join(', ')}{' '}
+            &mdash; one of the 8 best 3rd-place finishers (ranked by points, then goal difference)
           </div>
         )}
         {/* Bracket path for later rounds */}
@@ -968,13 +1062,13 @@ export default function Home() {
       </div>
 
       {/* ── Run simulation button (R32 only for now) ── */}
-      {isR32 ? (
+      {canSimulate ? (
         <button
           onClick={runSimulation}
           disabled={calculating}
           style={{
             padding: '15px 30px',
-            background: calculating ? '#ccc' : '#003366',
+            background: calculating ? '#ccc' : (isR16 ? '#1a5276' : '#003366'),
             color: 'white',
             border: 'none',
             borderRadius: '8px',
@@ -989,7 +1083,7 @@ export default function Home() {
         </button>
       ) : (
         <div style={{ padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404', fontSize: '14px' }}>
-          <strong>{roundLabel[selectedRound]}</strong> simulation coming soon. Currently, select any Round of 32 match to run group-stage Monte Carlo simulations. Later rounds will chain R32 results forward through the bracket.
+          <strong>{roundLabel[selectedRound]}</strong> simulation coming soon. R32 and R16 are available now.
         </div>
       )}
 
@@ -1075,6 +1169,43 @@ export default function Home() {
             &lambda;<sub>A</sub> = exp(&mu; + &beta; &times; (R<sub>A</sub> &minus; R<sub>B</sub>)),{' '}
             where &mu; = ln(1.26) and &beta; = 0.00149 (calibrated to FIFA Elo formula).{' '}
             Dixon-Coles &tau; correction (&rho; = &minus;0.05). 10,000 MC iterations.
+            {ratingSource && <> | Ratings: {ratingSource}</>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Results (R16) ── */}
+      {results && results.type === 'R16' && (
+        <div style={{ marginTop: '30px' }}>
+          <h3 style={{ color: '#1a5276', marginBottom: '20px' }}>Teams Reaching This Match</h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+            {renderAdvanceTable(results.sideALabel, results.sideA)}
+            {renderAdvanceTable(results.sideBLabel, results.sideB)}
+          </div>
+
+          {results.matchWinPcts && results.matchWinPcts.length > 0 && (
+            <div style={{ marginTop: '25px', background: '#1a5276', padding: '20px', borderRadius: '8px', color: 'white' }}>
+              <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
+                Match {selectedMatch} Win Probability
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+                {results.matchWinPcts.slice(0, 10).map((t: any, i: number) => (
+                  <div key={i} style={{
+                    background: 'rgba(255,255,255,0.1)', padding: '10px 15px',
+                    borderRadius: '6px', minWidth: '120px',
+                  }}>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+            <strong>Model:</strong> Full bracket simulation &mdash; group stages simulated for all feeder matches,
+            then knockout results chained through R32 into R16. Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
             {ratingSource && <> | Ratings: {ratingSource}</>}
           </div>
         </div>
