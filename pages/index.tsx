@@ -574,8 +574,10 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA}`,
-          groupBLabel: `Group ${gB}`,
+          groupALabel: `Group ${gA} (2nd advances)`,
+          groupBLabel: `Group ${gB} (2nd advances)`,
+          highlightA: '2nd' as const,
+          highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
@@ -623,8 +625,10 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA} (provides 1st)`,
-          groupBLabel: `Group ${gB} (provides 2nd)`,
+          groupALabel: `Group ${gA} (1st advances)`,
+          groupBLabel: `Group ${gB} (2nd advances)`,
+          highlightA: '1st' as const,
+          highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
@@ -687,7 +691,8 @@ export default function Home() {
 
         setResults({
           groupA: toResults(teamsA, positionsA),
-          groupALabel: `Group ${gA}`,
+          groupALabel: `Group ${gA} (1st advances)`,
+          highlightA: '1st' as const,
           matchWinPcts: allWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           thirdPlaceOpponents: thirdOppPcts,
@@ -720,9 +725,19 @@ export default function Home() {
     return path
   }
 
+  // ─── Button label helper ─────────────────────────────────────
+  const getMatchButtonLabel = (m: KnockoutMatch): string => {
+    if (m.round === 'R32' && m.groups) {
+      if (m.type === 'runner') return `Grp ${m.groups[0]} 2nd v Grp ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_runner') return `Grp ${m.groups[0]} 1st v Grp ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_3rd') return `Grp ${m.groups[0]} 1st v Best 3rd`
+    }
+    return m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')
+  }
+
   // ─── Render Helpers ────────────────────────────────────────────
 
-  const renderGroupTable = (label: string, teamResults: TeamResult[]) => (
+  const renderGroupTable = (label: string, teamResults: TeamResult[], highlightCol: '1st' | '2nd' = '2nd') => (
     <div>
       <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
@@ -730,8 +745,8 @@ export default function Home() {
           <tr style={{ background: '#003366', color: 'white' }}>
             <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>FIFA Pts</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>P(1st)</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#00509e' }}>P(2nd)</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', ...(highlightCol === '1st' ? { background: '#00509e' } : {}) }}>P(1st)</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', ...(highlightCol === '2nd' ? { background: '#00509e' } : {}) }}>P(2nd)</th>
           </tr>
         </thead>
         <tbody>
@@ -739,8 +754,10 @@ export default function Home() {
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>{r.rating.toFixed(0)}</td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.first.toFixed(1)}%</td>
-              <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', ...(highlightCol === '1st' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
+                {r.first.toFixed(1)}%
+              </td>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', ...(highlightCol === '2nd' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
                 {r.second.toFixed(1)}%
               </td>
             </tr>
@@ -849,7 +866,7 @@ export default function Home() {
                 >
                   <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== 'R32' ? m.round : ''}</span></div>
                   <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
-                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                    {getMatchButtonLabel(m)}
                   </div>
                 </button>
               ))}
@@ -909,7 +926,7 @@ export default function Home() {
                 >
                   <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== selectedRound ? m.round : ''}</span></div>
                   <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
-                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                    {getMatchButtonLabel(m)}
                   </div>
                 </button>
               ))}
@@ -983,12 +1000,12 @@ export default function Home() {
 
           {results.groupB ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-              {renderGroupTable(results.groupALabel, results.groupA)}
-              {renderGroupTable(results.groupBLabel, results.groupB)}
+              {renderGroupTable(results.groupALabel, results.groupA, results.highlightA || '2nd')}
+              {renderGroupTable(results.groupBLabel, results.groupB, results.highlightB || '2nd')}
             </div>
           ) : (
             <div style={{ maxWidth: '550px' }}>
-              {renderGroupTable(results.groupALabel, results.groupA)}
+              {renderGroupTable(results.groupALabel, results.groupA, results.highlightA || '1st')}
             </div>
           )}
 
