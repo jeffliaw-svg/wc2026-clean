@@ -434,9 +434,11 @@ export default function Home() {
   const [showDetail, setShowDetail] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
-  const [viewMode, setViewMode] = useState<'match' | 'team'>('match')
+  const [viewMode, setViewMode] = useState<'match' | 'team' | 'venue'>('match')
   const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
+  const [venueViewResults, setVenueViewResults] = useState<any>(null)
+  const [selectedVenue, setSelectedVenue] = useState<string>('Dallas/Arlington, TX')
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1102,6 +1104,157 @@ export default function Home() {
     setCalculating(false)
   }
 
+  // ─── Full Tournament Simulation (Venue View) ─────────────────────
+  const runVenueSimulation = async () => {
+    setCalculating(true)
+    try {
+      const ratingResponse = await fetch('/api/fivethirtyeight')
+      const ratingData = await ratingResponse.json()
+      if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch ratings')
+      const ratings: Record<string, number> = ratingData.teams
+      setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
+
+      const resolveGroup = (groupId: string) =>
+        groupTeams[groupId].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
+
+      const iterations = 10000
+      const groups = Object.keys(groupTeams)
+
+      // Per-match participant tracker: matchNum → teamName → count
+      const matchParticipants: Record<number, Record<string, number>> = {}
+      for (const m of allMatches) matchParticipants[m.matchNum] = {}
+
+      const r32List = allMatches.filter(m => m.round === 'R32')
+      const r16List = allMatches.filter(m => m.round === 'R16')
+      const qfList = allMatches.filter(m => m.round === 'QF')
+      const sfList = allMatches.filter(m => m.round === 'SF')
+      const finalMatch = allMatches.find(m => m.round === 'Final')!
+      const thirdPlaceMatch = allMatches.find(m => m.round === '3rd')!
+      const thirdPlaceR32 = r32List.filter(m => m.type === 'winner_vs_3rd')
+
+      for (let iter = 0; iter < iterations; iter++) {
+        // 1. Simulate all 12 group stages
+        const gs: Record<string, { name: string; rating: number; points: number; gd: number; gf: number }[]> = {}
+        for (const g of groups) gs[g] = simulateGroupFull(resolveGroup(g), g)
+
+        // 2. Rank 3rd-place teams, top 8 qualify
+        const thirds = groups.map(g => ({ group: g, ...gs[g][2] }))
+        thirds.sort((a, b) => b.points !== a.points ? b.points - a.points : b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf)
+        const qualifying3rds = new Set(thirds.slice(0, 8).map(t => t.group))
+
+        // 3. Assign 3rd-place teams to R32 matches (backtracking)
+        const thirdAssign: Record<number, { name: string; rating: number }> = {}
+        {
+          const used = new Set<string>()
+          const mList = [...thirdPlaceR32]
+          const bt = (idx: number): boolean => {
+            if (idx === mList.length) return true
+            const m = mList[idx]
+            const elig = m.thirdPlacePools!.filter(g => qualifying3rds.has(g) && !used.has(g))
+            for (let i = elig.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1))
+              ;[elig[i], elig[j]] = [elig[j], elig[i]]
+            }
+            for (const g of elig) {
+              used.add(g)
+              thirdAssign[m.matchNum] = { name: gs[g][2].name, rating: gs[g][2].rating }
+              if (bt(idx + 1)) return true
+              used.delete(g)
+              delete thirdAssign[m.matchNum]
+            }
+            return false
+          }
+          bt(0)
+        }
+
+        // 4. R32
+        const winners: Record<number, { name: string; rating: number }> = {}
+        for (const m of r32List) {
+          let tA: { name: string; rating: number }, tB: { name: string; rating: number }
+          if (m.type === 'runner') {
+            tA = gs[m.groups![0]][1]; tB = gs[m.groups![1]][1]
+          } else if (m.type === 'winner_vs_runner') {
+            tA = gs[m.groups![0]][0]; tB = gs[m.groups![1]][1]
+          } else {
+            tA = gs[m.groups![0]][0]
+            tB = thirdAssign[m.matchNum] || gs[m.groups![0]][2]
+          }
+          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
+          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 5. R16
+        for (const m of r16List) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
+          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 6. QF
+        for (const m of qfList) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
+          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 7. SF (also track losers for 3rd place match)
+        const losers: Record<number, { name: string; rating: number }> = {}
+        for (const m of sfList) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
+          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+          losers[m.matchNum] = w === 'A' ? tB : tA
+        }
+
+        // 8. 3rd Place
+        {
+          const tA = losers[thirdPlaceMatch.feedsFrom![0]], tB = losers[thirdPlaceMatch.feedsFrom![1]]
+          matchParticipants[thirdPlaceMatch.matchNum][tA.name] = (matchParticipants[thirdPlaceMatch.matchNum][tA.name] || 0) + 1
+          matchParticipants[thirdPlaceMatch.matchNum][tB.name] = (matchParticipants[thirdPlaceMatch.matchNum][tB.name] || 0) + 1
+        }
+
+        // 9. Final
+        {
+          const tA = winners[finalMatch.feedsFrom![0]], tB = winners[finalMatch.feedsFrom![1]]
+          matchParticipants[finalMatch.matchNum][tA.name] = (matchParticipants[finalMatch.matchNum][tA.name] || 0) + 1
+          matchParticipants[finalMatch.matchNum][tB.name] = (matchParticipants[finalMatch.matchNum][tB.name] || 0) + 1
+        }
+      }
+
+      // Convert to venue-grouped results
+      const venueData: Record<string, { matches: any[] }> = {}
+      for (const m of allMatches) {
+        const city = venueCity(m.venue)
+        if (!venueData[city]) venueData[city] = { matches: [] }
+        const teams = Object.entries(matchParticipants[m.matchNum])
+          .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+          .sort((a, b) => b.pct - a.pct)
+        venueData[city].matches.push({
+          matchNum: m.matchNum,
+          round: m.round,
+          date: m.date,
+          matchup: m.matchup,
+          title: m.title,
+          teams,
+        })
+      }
+
+      setVenueViewResults(venueData)
+    } catch (error) {
+      console.error('Venue simulation error:', error)
+      alert('Error running venue simulation. Check console for details.')
+    }
+    setCalculating(false)
+  }
+
   // ─── Bracket path helper ───────────────────────────────────────
   const getBracketPath = (match: KnockoutMatch): string[] => {
     if (!match.feedsFrom) return []
@@ -1249,7 +1402,7 @@ export default function Home() {
             border: '2px solid #003366', borderRadius: '6px 0 0 6px',
           }}
         >
-          Match View
+          Round View
         </button>
         <button
           onClick={() => setViewMode('team')}
@@ -1257,14 +1410,25 @@ export default function Home() {
             padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
             background: viewMode === 'team' ? '#003366' : 'white',
             color: viewMode === 'team' ? 'white' : '#003366',
-            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0 6px 6px 0',
+            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0',
           }}
         >
           Team View
         </button>
+        <button
+          onClick={() => setViewMode('venue')}
+          style={{
+            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
+            background: viewMode === 'venue' ? '#003366' : 'white',
+            color: viewMode === 'venue' ? 'white' : '#003366',
+            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0 6px 6px 0',
+          }}
+        >
+          Venue View
+        </button>
       </div>
 
-      {/* ═══════════════════ MATCH VIEW ═══════════════════ */}
+      {/* ═══════════════════ ROUND VIEW ═══════════════════ */}
       {viewMode === 'match' && <>
 
       {/* ── Round selector tabs ── */}
@@ -1700,6 +1864,114 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
+
+              <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+                <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
+                with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
+                {ratingSource && <> | Ratings: {ratingSource}</>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════ VENUE VIEW ═══════════════════ */}
+      {viewMode === 'venue' && (
+        <div>
+          <button
+            onClick={runVenueSimulation}
+            disabled={calculating}
+            style={{
+              padding: '15px 30px', background: calculating ? '#ccc' : '#003366',
+              color: 'white', border: 'none', borderRadius: '8px',
+              cursor: calculating ? 'not-allowed' : 'pointer',
+              fontSize: '16px', fontWeight: 'bold', width: '100%', maxWidth: '400px',
+            }}
+          >
+            {calculating ? 'Simulating full tournament...' : 'Run Venue Simulation (10,000 iterations)'}
+          </button>
+
+          {venueViewResults && (
+            <div style={{ marginTop: '20px' }}>
+              {/* Venue selector */}
+              <div style={{ marginBottom: '20px' }}>
+                <select
+                  value={selectedVenue}
+                  onChange={e => setSelectedVenue(e.target.value)}
+                  style={{
+                    padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
+                    border: '2px solid #003366', background: 'white', color: '#003366',
+                    fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
+                  }}
+                >
+                  {Object.keys(venueViewResults)
+                    .sort((a, b) => {
+                      if (a.includes('Dallas')) return -1
+                      if (b.includes('Dallas')) return 1
+                      return a.localeCompare(b)
+                    })
+                    .map(city => (
+                      <option key={city} value={city}>
+                        {city} &mdash; {venueViewResults[city].matches.length} knockout {venueViewResults[city].matches.length === 1 ? 'match' : 'matches'}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Matches at selected venue */}
+              {venueViewResults[selectedVenue] && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {venueViewResults[selectedVenue].matches.map((match: any) => {
+                    const visibleTeams = match.teams.filter((t: any) => t.pct >= 1)
+                    const hiddenCount = match.teams.filter((t: any) => t.pct < 1).length
+                    return (
+                      <div key={match.matchNum} style={{
+                        background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0',
+                        overflow: 'hidden',
+                      }}>
+                        <div style={{
+                          background: roundColor[match.round] || '#003366',
+                          color: 'white', padding: '12px 16px',
+                        }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '15px' }}>
+                            {match.title}
+                          </div>
+                          <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
+                            {match.date} &bull; {match.matchup}
+                          </div>
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ background: '#f5f5f5' }}>
+                              <th style={{ padding: '8px 16px', textAlign: 'left', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>Team</th>
+                              <th style={{ padding: '8px 16px', textAlign: 'right', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>P(Plays Here)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleTeams.map((t: any) => (
+                              <tr key={t.name} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <td style={{ padding: '6px 16px', fontSize: '14px', fontWeight: t.pct >= 10 ? 'bold' : 'normal' }}>
+                                  {t.name}
+                                </td>
+                                <td style={{ padding: '6px 16px', textAlign: 'right', fontSize: '14px', fontWeight: 'bold', color: roundColor[match.round] || '#003366' }}>
+                                  {t.pct.toFixed(1)}%
+                                </td>
+                              </tr>
+                            ))}
+                            {hiddenCount > 0 && (
+                              <tr>
+                                <td colSpan={2} style={{ padding: '6px 16px', fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+                                  + {hiddenCount} other {hiddenCount === 1 ? 'team' : 'teams'} with &lt;1% probability
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
                 <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
