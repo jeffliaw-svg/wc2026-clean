@@ -95,6 +95,32 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
   ],
 }
 
+// ─── Actual Results (update as tournament progresses) ────────────
+// Group stage: record actual match scores. Key = group letter.
+// When all 6 matches are recorded, group standings become deterministic.
+const actualGroupResults: Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]> = {
+  // Example — uncomment when matches are played:
+  // A: [
+  //   { teamA: 'Mexico', teamB: 'South Africa', scoreA: 2, scoreB: 1 },
+  //   { teamA: 'South Korea', teamB: 'UEFA Playoff D', scoreA: 3, scoreB: 0 },
+  // ],
+}
+
+// Knockout stage: record actual match winners. Key = match number.
+const actualKnockoutResults: Record<number, { winner: string; score: string }> = {
+  // Example — uncomment when matches are played:
+  // 78: { winner: 'Ecuador', score: '1-0' },
+}
+
+// Helper to look up a team's fallback rating from group data
+const findFallbackRating = (name: string): number => {
+  for (const group of Object.values(groupTeams)) {
+    const team = group.find(t => t.name === name)
+    if (team) return team.rating
+  }
+  return 1500
+}
+
 // ─── Match type shared across all knockout rounds ────────────────
 type KnockoutMatch = {
   matchNum: number
@@ -351,6 +377,17 @@ const allMatches: KnockoutMatch[] = [
 // Separate R32 matches for simulation (they have group data)
 const r32Matches = allMatches.filter(m => m.round === 'R32')
 
+// Build superscript footnote mapping for 3rd-place matches
+const thirdPlaceFootnotes: Record<number, { sup: string; pools: string[] }> = {}
+const _superscripts = ['\u00b9', '\u00b2', '\u00b3', '\u2074', '\u2075', '\u2076', '\u2077', '\u2078']
+let _fnIdx = 0
+for (const m of allMatches) {
+  if (m.type === 'winner_vs_3rd' && m.thirdPlacePools) {
+    thirdPlaceFootnotes[m.matchNum] = { sup: _superscripts[_fnIdx], pools: m.thirdPlacePools }
+    _fnIdx++
+  }
+}
+
 // Group matches by city for the selector
 const groupMatchesByCity = (matches: KnockoutMatch[]) => {
   const grouped: Record<string, KnockoutMatch[]> = {}
@@ -395,11 +432,17 @@ export default function Home() {
   const [results, setResults] = useState<any>(null)
   const [calculating, setCalculating] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
+  const [viewMode, setViewMode] = useState<'match' | 'team'>('match')
+  const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
+  const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
   const isR32 = selectedRound === 'R32'
+  const isR16 = selectedRound === 'R16'
+  const canSimulate = isR32 || !!currentMatch?.feedsFrom
 
   // ============================================================
   // Poisson Goal Model — Maher 1982 / Dixon & Coles 1997
@@ -472,12 +515,41 @@ export default function Home() {
     return { homeGoals: poissonSample(lambdaA), awayGoals: poissonSample(lambdaB) }
   }
 
-  const simulateGroup = (teams: { name: string; rating: number }[]): { name: string; rating: number }[] => {
+  const simulateGroup = (
+    teams: { name: string; rating: number }[],
+    groupId?: string,
+  ): { name: string; rating: number }[] => {
+    const actuals = groupId ? (actualGroupResults[groupId] || []) : []
     const standings = teams.map(t => ({
       name: t.name, rating: t.rating, points: 0, gd: 0, gf: 0,
     }))
+
+    // Apply actual results first
+    const played = new Set<string>()
+    for (const actual of actuals) {
+      const iA = standings.findIndex(s => s.name === actual.teamA)
+      const iB = standings.findIndex(s => s.name === actual.teamB)
+      if (iA === -1 || iB === -1) continue
+      const key = iA < iB ? `${iA}-${iB}` : `${iB}-${iA}`
+      played.add(key)
+      standings[iA].gf += actual.scoreA
+      standings[iB].gf += actual.scoreB
+      standings[iA].gd += actual.scoreA - actual.scoreB
+      standings[iB].gd += actual.scoreB - actual.scoreA
+      if (actual.scoreA > actual.scoreB) {
+        standings[iA].points += 3
+      } else if (actual.scoreB > actual.scoreA) {
+        standings[iB].points += 3
+      } else {
+        standings[iA].points += 1
+        standings[iB].points += 1
+      }
+    }
+
+    // Simulate remaining matches
     for (let i = 0; i < teams.length; i++) {
       for (let j = i + 1; j < teams.length; j++) {
+        if (played.has(`${i}-${j}`)) continue
         const result = simulateMatch(standings[i].rating, standings[j].rating)
         standings[i].gf += result.homeGoals
         standings[j].gf += result.awayGoals
@@ -493,12 +565,55 @@ export default function Home() {
         }
       }
     }
+
     standings.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points
       if (b.gd !== a.gd) return b.gd - a.gd
       return b.gf - a.gf
     })
     return standings.map(s => ({ name: s.name, rating: s.rating }))
+  }
+
+  const simulateGroupFull = (
+    teams: { name: string; rating: number }[],
+    groupId?: string,
+  ): { name: string; rating: number; points: number; gd: number; gf: number }[] => {
+    const actuals = groupId ? (actualGroupResults[groupId] || []) : []
+    const standings = teams.map(t => ({
+      name: t.name, rating: t.rating, points: 0, gd: 0, gf: 0,
+    }))
+    const played = new Set<string>()
+    for (const actual of actuals) {
+      const iA = standings.findIndex(s => s.name === actual.teamA)
+      const iB = standings.findIndex(s => s.name === actual.teamB)
+      if (iA === -1 || iB === -1) continue
+      const key = iA < iB ? `${iA}-${iB}` : `${iB}-${iA}`
+      played.add(key)
+      standings[iA].gf += actual.scoreA; standings[iB].gf += actual.scoreB
+      standings[iA].gd += actual.scoreA - actual.scoreB
+      standings[iB].gd += actual.scoreB - actual.scoreA
+      if (actual.scoreA > actual.scoreB) standings[iA].points += 3
+      else if (actual.scoreB > actual.scoreA) standings[iB].points += 3
+      else { standings[iA].points += 1; standings[iB].points += 1 }
+    }
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        if (played.has(`${i}-${j}`)) continue
+        const result = simulateMatch(standings[i].rating, standings[j].rating)
+        standings[i].gf += result.homeGoals; standings[j].gf += result.awayGoals
+        standings[i].gd += result.homeGoals - result.awayGoals
+        standings[j].gd += result.awayGoals - result.homeGoals
+        if (result.homeGoals > result.awayGoals) standings[i].points += 3
+        else if (result.awayGoals > result.homeGoals) standings[j].points += 3
+        else { standings[i].points += 1; standings[j].points += 1 }
+      }
+    }
+    standings.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points
+      if (b.gd !== a.gd) return b.gd - a.gd
+      return b.gf - a.gf
+    })
+    return standings
   }
 
   const simulateKnockoutMatch = (ratingA: number, ratingB: number): 'A' | 'B' => {
@@ -516,7 +631,7 @@ export default function Home() {
   // ─── Main Simulation ──────────────────────────────────────────
 
   const runSimulation = async () => {
-    if (!isR32) return // Only R32 has simulation for now
+    if (!canSimulate) return
     setCalculating(true)
 
     try {
@@ -546,8 +661,8 @@ export default function Home() {
         teamsB.forEach(t => (matchWins[t.name] = 0))
 
         for (let i = 0; i < iterations; i++) {
-          const standingsA = simulateGroup(teamsA)
-          const standingsB = simulateGroup(teamsB)
+          const standingsA = simulateGroup(teamsA, gA)
+          const standingsB = simulateGroup(teamsB, gB)
           standingsA.forEach((team, pos) => positionsA[team.name][pos]++)
           standingsB.forEach((team, pos) => positionsB[team.name][pos]++)
           const runnerA = standingsA[1]
@@ -574,8 +689,10 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA}`,
-          groupBLabel: `Group ${gB}`,
+          groupALabel: `Group ${gA} (Runner-Up)`,
+          groupBLabel: `Group ${gB} (Runner-Up)`,
+          highlightA: '2nd' as const,
+          highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
@@ -595,8 +712,8 @@ export default function Home() {
         teamsB.forEach(t => (matchWins[t.name] = 0))
 
         for (let i = 0; i < iterations; i++) {
-          const standingsA = simulateGroup(teamsA)
-          const standingsB = simulateGroup(teamsB)
+          const standingsA = simulateGroup(teamsA, gA)
+          const standingsB = simulateGroup(teamsB, gB)
           standingsA.forEach((team, pos) => positionsA[team.name][pos]++)
           standingsB.forEach((team, pos) => positionsB[team.name][pos]++)
           const winnerTeam = standingsA[0]
@@ -623,14 +740,16 @@ export default function Home() {
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
-          groupALabel: `Group ${gA} (provides 1st)`,
-          groupBLabel: `Group ${gB} (provides 2nd)`,
+          groupALabel: `Group ${gA} (Winner)`,
+          groupBLabel: `Group ${gB} (Runner-Up)`,
+          highlightA: '1st' as const,
+          highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
         })
 
-      } else {
+      } else if (match.type === 'winner_vs_3rd') {
         const gA = match.groups![0]
         const teamsA = resolveGroup(gA)
         const pools = match.thirdPlacePools || []
@@ -644,11 +763,11 @@ export default function Home() {
         const thirdPlaceWins: Record<string, number> = {}
 
         for (let i = 0; i < iterations; i++) {
-          const standingsA = simulateGroup(teamsA)
+          const standingsA = simulateGroup(teamsA, gA)
           standingsA.forEach((team, pos) => positionsA[team.name][pos]++)
 
           const poolIdx = Math.floor(Math.random() * poolTeams.length)
-          const standingsPool = simulateGroup(poolTeams[poolIdx])
+          const standingsPool = simulateGroup(poolTeams[poolIdx], pools[poolIdx])
           const thirdTeam = standingsPool[2]
 
           thirdPlaceAppearances[thirdTeam.name] = (thirdPlaceAppearances[thirdTeam.name] || 0) + 1
@@ -687,11 +806,130 @@ export default function Home() {
 
         setResults({
           groupA: toResults(teamsA, positionsA),
-          groupALabel: `Group ${gA}`,
+          groupALabel: `Group ${gA} (Winner)`,
+          highlightA: '1st' as const,
           matchWinPcts: allWinPcts,
           matchProbsA: calcGroupMatchProbs(teamsA),
           thirdPlaceOpponents: thirdOppPcts,
           thirdPlacePools: pools,
+        })
+      }
+      // ── General knockout simulation (R16, QF, SF, 3rd, Final) ──
+      if (currentMatch.feedsFrom) {
+        // Helper: simulate one R32 match and return the winner
+        const simulateR32Winner = (r32: KnockoutMatch): { name: string; rating: number } => {
+          const actual = actualKnockoutResults[r32.matchNum]
+          if (actual) {
+            return { name: actual.winner, rating: ratings[actual.winner] || findFallbackRating(actual.winner) }
+          }
+          if (r32.type === 'runner') {
+            const [gA, gB] = r32.groups!
+            const sA = simulateGroup(resolveGroup(gA), gA)
+            const sB = simulateGroup(resolveGroup(gB), gB)
+            const w = simulateKnockoutMatch(sA[1].rating, sB[1].rating)
+            return w === 'A' ? sA[1] : sB[1]
+          } else if (r32.type === 'winner_vs_runner') {
+            const [gA, gB] = r32.groups!
+            const sA = simulateGroup(resolveGroup(gA), gA)
+            const sB = simulateGroup(resolveGroup(gB), gB)
+            const w = simulateKnockoutMatch(sA[0].rating, sB[1].rating)
+            return w === 'A' ? sA[0] : sB[1]
+          } else {
+            // winner_vs_3rd
+            const gA = r32.groups![0]
+            const pools = r32.thirdPlacePools || []
+            const sA = simulateGroup(resolveGroup(gA), gA)
+            const poolIdx = Math.floor(Math.random() * pools.length)
+            const sPool = simulateGroup(resolveGroup(pools[poolIdx]), pools[poolIdx])
+            const w = simulateKnockoutMatch(sA[0].rating, sPool[2].rating)
+            return w === 'A' ? sA[0] : sPool[2]
+          }
+        }
+
+        // Recursive: simulate any match winner following the feedsFrom chain
+        const simulateMatchWinner = (m: KnockoutMatch): { name: string; rating: number } => {
+          const actual = actualKnockoutResults[m.matchNum]
+          if (actual) {
+            return { name: actual.winner, rating: ratings[actual.winner] || findFallbackRating(actual.winner) }
+          }
+          if (m.round === 'R32') return simulateR32Winner(m)
+          const [fA, fB] = m.feedsFrom!
+          const mA = allMatches.find(x => x.matchNum === fA)!
+          const mB = allMatches.find(x => x.matchNum === fB)!
+          const pA = simulateMatchWinner(mA)
+          const pB = simulateMatchWinner(mB)
+          const w = simulateKnockoutMatch(pA.rating, pB.rating)
+          return w === 'A' ? pA : pB
+        }
+
+        // Simulate a match returning both winner and loser (needed for 3rd-place match)
+        const simulateMatchResult = (m: KnockoutMatch): { winner: { name: string; rating: number }; loser: { name: string; rating: number } } => {
+          const [fA, fB] = m.feedsFrom!
+          const mA = allMatches.find(x => x.matchNum === fA)!
+          const mB = allMatches.find(x => x.matchNum === fB)!
+          const pA = simulateMatchWinner(mA)
+          const pB = simulateMatchWinner(mB)
+          const actual = actualKnockoutResults[m.matchNum]
+          if (actual) {
+            const isAWinner = actual.winner === pA.name
+            return isAWinner ? { winner: pA, loser: pB } : { winner: pB, loser: pA }
+          }
+          const w = simulateKnockoutMatch(pA.rating, pB.rating)
+          return w === 'A' ? { winner: pA, loser: pB } : { winner: pB, loser: pA }
+        }
+
+        const is3rdPlace = currentMatch.round === '3rd'
+        const [feedNumA, feedNumB] = currentMatch.feedsFrom
+        const feederA = allMatches.find(m => m.matchNum === feedNumA)!
+        const feederB = allMatches.find(m => m.matchNum === feedNumB)!
+
+        const advancesA: Record<string, number> = {}
+        const advancesB: Record<string, number> = {}
+        const koWins: Record<string, number> = {}
+
+        for (let i = 0; i < iterations; i++) {
+          let teamA: { name: string; rating: number }
+          let teamB: { name: string; rating: number }
+
+          if (is3rdPlace) {
+            const resA = simulateMatchResult(feederA)
+            const resB = simulateMatchResult(feederB)
+            teamA = resA.loser
+            teamB = resB.loser
+          } else {
+            teamA = simulateMatchWinner(feederA)
+            teamB = simulateMatchWinner(feederB)
+          }
+
+          advancesA[teamA.name] = (advancesA[teamA.name] || 0) + 1
+          advancesB[teamB.name] = (advancesB[teamB.name] || 0) + 1
+          const w = simulateKnockoutMatch(teamA.rating, teamB.rating)
+          const winnerName = w === 'A' ? teamA.name : teamB.name
+          koWins[winnerName] = (koWins[winnerName] || 0) + 1
+        }
+
+        const toSide = (adv: Record<string, number>) =>
+          Object.entries(adv)
+            .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+            .sort((a, b) => b.pct - a.pct)
+
+        const winPcts = Object.entries(koWins)
+          .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+          .sort((a, b) => b.pct - a.pct)
+
+        const sideLabel = (feeder: KnockoutMatch, prefix: string): string => {
+          if (feeder.round === 'R32') return `${prefix} M${feeder.matchNum}: ${getMatchButtonLabel(feeder)}`
+          return `${prefix} M${feeder.matchNum} (${roundLabel[feeder.round] || feeder.round})`
+        }
+
+        setResults({
+          type: 'knockout',
+          round: currentMatch.round,
+          sideA: toSide(advancesA),
+          sideB: toSide(advancesB),
+          sideALabel: sideLabel(feederA, is3rdPlace ? 'Loser' : 'Winner'),
+          sideBLabel: sideLabel(feederB, is3rdPlace ? 'Loser' : 'Winner'),
+          matchWinPcts: winPcts,
         })
       }
     } catch (error) {
@@ -700,6 +938,167 @@ export default function Home() {
       setResults(null)
     }
 
+    setCalculating(false)
+  }
+
+  // ─── Full Tournament Simulation (Team View) ─────────────────────
+
+  const runTeamSimulation = async () => {
+    setCalculating(true)
+    try {
+      const ratingResponse = await fetch('/api/fivethirtyeight')
+      const ratingData = await ratingResponse.json()
+      if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch ratings')
+      const ratings: Record<string, number> = ratingData.teams
+      setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
+
+      const resolveGroup = (groupId: string) =>
+        groupTeams[groupId].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
+
+      const iterations = 10000
+      const groups = Object.keys(groupTeams)
+
+      // Per-team tracker: round → venue city → count
+      const tracker: Record<string, {
+        R32: Record<string, number>; R16: Record<string, number>
+        QF: Record<string, number>; SF: Record<string, number>
+        Final: Record<string, number>; Champion: number
+      }> = {}
+      for (const g of groups) {
+        for (const t of groupTeams[g]) {
+          tracker[t.name] = { R32: {}, R16: {}, QF: {}, SF: {}, Final: {}, Champion: 0 }
+        }
+      }
+
+      const r32List = allMatches.filter(m => m.round === 'R32')
+      const r16List = allMatches.filter(m => m.round === 'R16')
+      const qfList = allMatches.filter(m => m.round === 'QF')
+      const sfList = allMatches.filter(m => m.round === 'SF')
+      const finalMatch = allMatches.find(m => m.round === 'Final')!
+      const thirdPlaceR32 = r32List.filter(m => m.type === 'winner_vs_3rd')
+
+      for (let iter = 0; iter < iterations; iter++) {
+        // 1. Simulate all 12 group stages (with points for 3rd-place ranking)
+        const gs: Record<string, { name: string; rating: number; points: number; gd: number; gf: number }[]> = {}
+        for (const g of groups) gs[g] = simulateGroupFull(resolveGroup(g), g)
+
+        // 2. Rank 3rd-place teams, top 8 qualify
+        const thirds = groups.map(g => ({ group: g, ...gs[g][2] }))
+        thirds.sort((a, b) => b.points !== a.points ? b.points - a.points : b.gd !== a.gd ? b.gd - a.gd : b.gf - a.gf)
+        const qualifying3rds = new Set(thirds.slice(0, 8).map(t => t.group))
+
+        // 3. Assign 3rd-place teams to R32 matches (backtracking for valid matching)
+        const thirdAssign: Record<number, { name: string; rating: number }> = {}
+        {
+          const used = new Set<string>()
+          const mList = [...thirdPlaceR32]
+          const bt = (idx: number): boolean => {
+            if (idx === mList.length) return true
+            const m = mList[idx]
+            const elig = m.thirdPlacePools!.filter(g => qualifying3rds.has(g) && !used.has(g))
+            for (let i = elig.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1))
+              ;[elig[i], elig[j]] = [elig[j], elig[i]]
+            }
+            for (const g of elig) {
+              used.add(g)
+              thirdAssign[m.matchNum] = { name: gs[g][2].name, rating: gs[g][2].rating }
+              if (bt(idx + 1)) return true
+              used.delete(g)
+              delete thirdAssign[m.matchNum]
+            }
+            return false
+          }
+          bt(0)
+        }
+
+        // 4. Determine R32 participants and simulate
+        const winners: Record<number, { name: string; rating: number }> = {}
+        for (const m of r32List) {
+          let tA: { name: string; rating: number }, tB: { name: string; rating: number }
+          if (m.type === 'runner') {
+            tA = gs[m.groups![0]][1]; tB = gs[m.groups![1]][1]
+          } else if (m.type === 'winner_vs_runner') {
+            tA = gs[m.groups![0]][0]; tB = gs[m.groups![1]][1]
+          } else {
+            tA = gs[m.groups![0]][0]
+            tB = thirdAssign[m.matchNum] || gs[m.groups![0]][2]
+          }
+          const city = venueCity(m.venue)
+          tracker[tA.name].R32[city] = (tracker[tA.name].R32[city] || 0) + 1
+          tracker[tB.name].R32[city] = (tracker[tB.name].R32[city] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 5. R16
+        for (const m of r16List) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          const city = venueCity(m.venue)
+          tracker[tA.name].R16[city] = (tracker[tA.name].R16[city] || 0) + 1
+          tracker[tB.name].R16[city] = (tracker[tB.name].R16[city] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 6. QF
+        for (const m of qfList) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          const city = venueCity(m.venue)
+          tracker[tA.name].QF[city] = (tracker[tA.name].QF[city] || 0) + 1
+          tracker[tB.name].QF[city] = (tracker[tB.name].QF[city] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 7. SF
+        for (const m of sfList) {
+          const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
+          const city = venueCity(m.venue)
+          tracker[tA.name].SF[city] = (tracker[tA.name].SF[city] || 0) + 1
+          tracker[tB.name].SF[city] = (tracker[tB.name].SF[city] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          winners[m.matchNum] = w === 'A' ? tA : tB
+        }
+
+        // 8. Final
+        {
+          const tA = winners[finalMatch.feedsFrom![0]], tB = winners[finalMatch.feedsFrom![1]]
+          const city = venueCity(finalMatch.venue)
+          tracker[tA.name].Final[city] = (tracker[tA.name].Final[city] || 0) + 1
+          tracker[tB.name].Final[city] = (tracker[tB.name].Final[city] || 0) + 1
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          const champ = w === 'A' ? tA : tB
+          tracker[champ.name].Champion++
+        }
+      }
+
+      // Convert trackers to result rows
+      const roundData = (rd: Record<string, number>) => {
+        const total = Object.values(rd).reduce((a, b) => a + b, 0)
+        const venues = Object.entries(rd)
+          .map(([venue, count]) => ({ venue, pct: (count / iterations) * 100 }))
+          .sort((a, b) => b.pct - a.pct)
+        return { total: (total / iterations) * 100, venues }
+      }
+
+      const rows = Object.entries(tracker).map(([name, stats]) => {
+        const teamRating = ratings[name] || findFallbackRating(name)
+        const group = Object.entries(groupTeams).find(([, teams]) => teams.some(t => t.name === name))?.[0] || '?'
+        return {
+          name, rating: teamRating, group,
+          R32: roundData(stats.R32), R16: roundData(stats.R16),
+          QF: roundData(stats.QF), SF: roundData(stats.SF),
+          Final: roundData(stats.Final),
+          Champion: (stats.Champion / iterations) * 100,
+        }
+      }).sort((a, b) => b.rating - a.rating)
+
+      setTeamViewResults(rows)
+    } catch (error) {
+      console.error('Team simulation error:', error)
+      alert('Error running team simulation. Check console for details.')
+    }
     setCalculating(false)
   }
 
@@ -720,9 +1119,26 @@ export default function Home() {
     return path
   }
 
+  // ─── Button label helper ─────────────────────────────────────
+  const getMatchButtonLabel = (m: KnockoutMatch): string => {
+    if (m.round === 'R32' && m.groups) {
+      if (m.type === 'runner') return `Group ${m.groups[0]} 2nd v Group ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_runner') return `Group ${m.groups[0]} Winner v Group ${m.groups[1]} 2nd`
+      if (m.type === 'winner_vs_3rd') {
+        const fn = thirdPlaceFootnotes[m.matchNum]
+        return `Group ${m.groups[0]} Winner v 3rd${fn?.sup || ''}`
+      }
+    }
+    if (m.feedsFrom) {
+      if (m.round === '3rd') return `L M${m.feedsFrom[0]} v L M${m.feedsFrom[1]}`
+      return `W M${m.feedsFrom[0]} v W M${m.feedsFrom[1]}`
+    }
+    return m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')
+  }
+
   // ─── Render Helpers ────────────────────────────────────────────
 
-  const renderGroupTable = (label: string, teamResults: TeamResult[]) => (
+  const renderGroupTable = (label: string, teamResults: TeamResult[], highlightCol: '1st' | '2nd' = '2nd') => (
     <div>
       <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
@@ -730,8 +1146,8 @@ export default function Home() {
           <tr style={{ background: '#003366', color: 'white' }}>
             <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>FIFA Pts</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>P(1st)</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: '#00509e' }}>P(2nd)</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', ...(highlightCol === '1st' ? { background: '#00509e' } : {}) }}>P(1st)</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', ...(highlightCol === '2nd' ? { background: '#00509e' } : {}) }}>P(2nd)</th>
           </tr>
         </thead>
         <tbody>
@@ -739,9 +1155,35 @@ export default function Home() {
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>{r.rating.toFixed(0)}</td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: '14px' }}>{r.first.toFixed(1)}%</td>
-              <td style={{ padding: '10px', textAlign: 'right', color: '#003366', fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', ...(highlightCol === '1st' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
+                {r.first.toFixed(1)}%
+              </td>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', ...(highlightCol === '2nd' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
                 {r.second.toFixed(1)}%
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
+  const renderAdvanceTable = (label: string, teams: { name: string; pct: number }[], color: string = '#1a5276') => (
+    <div>
+      <h4 style={{ color, marginBottom: '10px', fontSize: '16px' }}>{label}</h4>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+        <thead>
+          <tr style={{ background: color, color: 'white' }}>
+            <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: 'rgba(255,255,255,0.15)' }}>P(Advance)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {teams.map((t, i) => (
+            <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{t.name}</td>
+              <td style={{ padding: '10px', textAlign: 'right', color, fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
+                {t.pct.toFixed(1)}%
               </td>
             </tr>
           ))}
@@ -796,9 +1238,38 @@ export default function Home() {
         R32 through Final &bull; Poisson simulation &bull; 10,000 iterations
       </p>
 
+      {/* ── View mode tabs ── */}
+      <div style={{ display: 'flex', gap: '0', marginBottom: '20px' }}>
+        <button
+          onClick={() => setViewMode('match')}
+          style={{
+            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
+            background: viewMode === 'match' ? '#003366' : 'white',
+            color: viewMode === 'match' ? 'white' : '#003366',
+            border: '2px solid #003366', borderRadius: '6px 0 0 6px',
+          }}
+        >
+          Match View
+        </button>
+        <button
+          onClick={() => setViewMode('team')}
+          style={{
+            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
+            background: viewMode === 'team' ? '#003366' : 'white',
+            color: viewMode === 'team' ? 'white' : '#003366',
+            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0 6px 6px 0',
+          }}
+        >
+          Team View
+        </button>
+      </div>
+
+      {/* ═══════════════════ MATCH VIEW ═══════════════════ */}
+      {viewMode === 'match' && <>
+
       {/* ── Round selector tabs ── */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        {(['R32', 'R16', 'QF', 'SF', 'Final'] as const).map(round => (
+        {(['R32', 'R16', 'QF', 'SF', '3rd', 'Final'] as const).map(round => (
           <button
             key={round}
             onClick={() => {
@@ -849,7 +1320,7 @@ export default function Home() {
                 >
                   <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== 'R32' ? m.round : ''}</span></div>
                   <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
-                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                    {getMatchButtonLabel(m)}
                   </div>
                 </button>
               ))}
@@ -909,13 +1380,47 @@ export default function Home() {
                 >
                   <div>M{m.matchNum} <span style={{ fontSize: '9px', fontWeight: 'normal', opacity: 0.7 }}>{m.round !== selectedRound ? m.round : ''}</span></div>
                   <div style={{ fontSize: '10px', fontWeight: 'normal', opacity: 0.8, marginTop: '2px' }}>
-                    {m.matchup.replace(/vs /g, 'v ').replace(/Winner /g, 'W').replace(/Loser /g, 'L')}
+                    {getMatchButtonLabel(m)}
                   </div>
                 </button>
               ))}
             </div>
           </div>
         ))}
+
+        {/* 3rd-place footnotes for R32 — only show relevant ones */}
+        {isR32 && (() => {
+          // Collect match numbers currently visible on screen
+          const visibleMatchNums = new Set<number>()
+          dallasMatches.flatMap(([, ms]) => ms).forEach(m => visibleMatchNums.add(m.matchNum))
+          if (showOtherLocations) otherMatches.flatMap(([, ms]) => ms).forEach(m => visibleMatchNums.add(m.matchNum))
+          const relevantFootnotes = Object.entries(thirdPlaceFootnotes)
+            .filter(([matchNum]) => visibleMatchNums.has(Number(matchNum)))
+          if (relevantFootnotes.length === 0) return null
+          return (
+            <div style={{ marginTop: '8px' }}>
+              <span
+                onClick={() => setShowNotes(!showNotes)}
+                style={{ fontSize: '11px', color: '#999', cursor: 'pointer', userSelect: 'none' }}
+              >
+                {showNotes ? '\u25BC' : '\u25B6'} 3rd-place notes ({relevantFootnotes.length})
+              </span>
+              {showNotes && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: '#888', lineHeight: '1.8', paddingLeft: '4px' }}>
+                  {relevantFootnotes.map(([matchNum, fn]) => (
+                    <div key={matchNum}>
+                      <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: vs 3rd place from Group {fn.pools.join(', ')}
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '10px', color: '#aaa' }}>
+                    8 of 12 third-place finishers advance. Exact assignment depends on which combination of 8 groups
+                    produce qualifying 3rd-place teams (FIFA Regulations Annex C, 495 combinations).
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── Match info card ── */}
@@ -934,7 +1439,9 @@ export default function Home() {
         </div>
         {currentMatch.type === 'winner_vs_3rd' && currentMatch.thirdPlacePools && (
           <div style={{ fontSize: '12px', color: '#999', marginTop: '6px' }}>
-            3rd-place opponent from: Groups {currentMatch.thirdPlacePools.join(', ')}
+            <sup style={{ fontWeight: 'bold' }}>{thirdPlaceFootnotes[currentMatch.matchNum]?.sup}</sup>{' '}
+            Opponent will be the 3rd-place team from Group {currentMatch.thirdPlacePools.join(', ')}{' '}
+            &mdash; exact assignment depends on which 8 of 12 third-place teams qualify (FIFA Annex C)
           </div>
         )}
         {/* Bracket path for later rounds */}
@@ -951,13 +1458,13 @@ export default function Home() {
       </div>
 
       {/* ── Run simulation button (R32 only for now) ── */}
-      {isR32 ? (
+      {canSimulate ? (
         <button
           onClick={runSimulation}
           disabled={calculating}
           style={{
             padding: '15px 30px',
-            background: calculating ? '#ccc' : '#003366',
+            background: calculating ? '#ccc' : (roundColor[selectedRound] || '#003366'),
             color: 'white',
             border: 'none',
             borderRadius: '8px',
@@ -972,7 +1479,7 @@ export default function Home() {
         </button>
       ) : (
         <div style={{ padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404', fontSize: '14px' }}>
-          <strong>{roundLabel[selectedRound]}</strong> simulation coming soon. Currently, select any Round of 32 match to run group-stage Monte Carlo simulations. Later rounds will chain R32 results forward through the bracket.
+          Select a match to simulate.
         </div>
       )}
 
@@ -983,12 +1490,12 @@ export default function Home() {
 
           {results.groupB ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-              {renderGroupTable(results.groupALabel, results.groupA)}
-              {renderGroupTable(results.groupBLabel, results.groupB)}
+              {renderGroupTable(results.groupALabel, results.groupA, results.highlightA || '2nd')}
+              {renderGroupTable(results.groupBLabel, results.groupB, results.highlightB || '2nd')}
             </div>
           ) : (
             <div style={{ maxWidth: '550px' }}>
-              {renderGroupTable(results.groupALabel, results.groupA)}
+              {renderGroupTable(results.groupALabel, results.groupA, results.highlightA || '1st')}
             </div>
           )}
 
@@ -1060,6 +1567,147 @@ export default function Home() {
             Dixon-Coles &tau; correction (&rho; = &minus;0.05). 10,000 MC iterations.
             {ratingSource && <> | Ratings: {ratingSource}</>}
           </div>
+        </div>
+      )}
+
+      {/* ── Results (Knockout: R16, QF, SF, 3rd, Final) ── */}
+      {results && results.type === 'knockout' && (
+        <div style={{ marginTop: '30px' }}>
+          <h3 style={{ color: roundColor[results.round] || '#1a5276', marginBottom: '20px' }}>
+            {results.round === '3rd' ? 'Teams Reaching 3rd Place Match' :
+             results.round === 'Final' ? 'Teams Reaching the Final' :
+             'Teams Reaching This Match'}
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+            {renderAdvanceTable(results.sideALabel, results.sideA, roundColor[results.round] || '#1a5276')}
+            {renderAdvanceTable(results.sideBLabel, results.sideB, roundColor[results.round] || '#1a5276')}
+          </div>
+
+          {results.matchWinPcts && results.matchWinPcts.length > 0 && (
+            <div style={{ marginTop: '25px', background: roundColor[results.round] || '#1a5276', padding: '20px', borderRadius: '8px', color: 'white' }}>
+              <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
+                Match {selectedMatch} &mdash; {results.round === 'Final' ? 'Win the World Cup' : results.round === '3rd' ? 'Win 3rd Place' : 'Win Probability'}
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
+                {results.matchWinPcts.slice(0, 12).map((t: any, i: number) => (
+                  <div key={i} style={{
+                    background: 'rgba(255,255,255,0.1)', padding: '10px 15px',
+                    borderRadius: '6px', minWidth: '120px',
+                  }}>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
+                    <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+            <strong>Model:</strong> Full bracket simulation &mdash; group stages simulated for all feeder matches,
+            then knockout results chained through R32 &rarr; {results.round}. Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
+            {ratingSource && <> | Ratings: {ratingSource}</>}
+          </div>
+        </div>
+      )}
+
+      </>}
+
+      {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
+      {viewMode === 'team' && (
+        <div>
+          <button
+            onClick={runTeamSimulation}
+            disabled={calculating}
+            style={{
+              padding: '15px 30px', background: calculating ? '#ccc' : '#003366',
+              color: 'white', border: 'none', borderRadius: '8px',
+              cursor: calculating ? 'not-allowed' : 'pointer',
+              fontSize: '16px', fontWeight: 'bold', width: '100%', maxWidth: '400px',
+            }}
+          >
+            {calculating ? 'Simulating full tournament...' : 'Run Full Tournament Simulation (10,000 iterations)'}
+          </button>
+
+          {teamViewResults && (
+            <div style={{ marginTop: '25px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ background: '#003366', color: 'white' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', position: 'sticky', left: 0, background: '#003366', zIndex: 1 }}>Team</th>
+                    <th style={{ padding: '10px', textAlign: 'center', fontSize: '11px' }}>Grp</th>
+                    <th style={{ padding: '10px', textAlign: 'right', fontSize: '11px' }}>Rating</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#00509e' }}>R32</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#1a5276' }}>R16</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#6c3483' }}>QF</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#b7950b' }}>SF</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#c0392b' }}>Final</th>
+                    <th style={{ padding: '10px', textAlign: 'right', background: '#1a1a2e' }}>Champ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teamViewResults.map((t: any, i: number) => (
+                    <>
+                      <tr
+                        key={t.name}
+                        onClick={() => setExpandedTeam(expandedTeam === t.name ? null : t.name)}
+                        style={{
+                          borderBottom: expandedTeam === t.name ? 'none' : '1px solid #e0e0e0',
+                          background: i % 2 === 0 ? 'white' : '#f9f9f9',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <td style={{ padding: '10px', fontWeight: 'bold', position: 'sticky', left: 0, background: i % 2 === 0 ? 'white' : '#f9f9f9', zIndex: 1 }}>
+                          {t.name}
+                        </td>
+                        <td style={{ padding: '10px', textAlign: 'center', color: '#888', fontSize: '12px' }}>{t.group}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', color: '#888', fontSize: '12px' }}>{t.rating.toFixed(0)}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#003366' }}>{t.R32.total.toFixed(1)}%</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#1a5276' }}>{t.R16.total.toFixed(1)}%</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#6c3483' }}>{t.QF.total.toFixed(1)}%</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#b7950b' }}>{t.SF.total.toFixed(1)}%</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#c0392b' }}>{t.Final.total.toFixed(1)}%</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: '#1a1a2e', fontSize: '15px' }}>{t.Champion.toFixed(1)}%</td>
+                      </tr>
+                      {expandedTeam === t.name && (
+                        <tr key={`${t.name}-detail`} style={{ background: '#f0f4ff', borderBottom: '2px solid #003366' }}>
+                          <td colSpan={9} style={{ padding: '15px 20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+                              {(['R32', 'R16', 'QF', 'SF', 'Final'] as const).map(rd => {
+                                const data = t[rd]
+                                if (!data || data.total === 0) return null
+                                return (
+                                  <div key={rd} style={{ background: 'white', padding: '10px', borderRadius: '6px', border: '1px solid #e0e0e0' }}>
+                                    <div style={{ fontWeight: 'bold', fontSize: '13px', color: roundColor[rd] || '#003366', marginBottom: '6px' }}>
+                                      {roundLabel[rd] || rd} &mdash; {data.total.toFixed(1)}%
+                                    </div>
+                                    {data.venues.map((v: any, vi: number) => (
+                                      <div key={vi} style={{ fontSize: '12px', color: '#555', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                                        <span>{v.venue}</span>
+                                        <span style={{ fontWeight: 'bold', color: v.venue.includes('Dallas') ? '#0d6efd' : '#333' }}>
+                                          {v.pct.toFixed(1)}%
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+
+              <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+                <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
+                with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
+                {ratingSource && <> | Ratings: {ratingSource}</>}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
