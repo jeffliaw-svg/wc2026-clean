@@ -18,6 +18,15 @@ type MatchProb = {
   pB: number
 }
 
+type GroupMatch = {
+  matchNum: number
+  group: string
+  date: string
+  teamA: string
+  teamB: string
+  venue: string
+}
+
 // ─── All 12 Groups ───────────────────────────────────────────────
 // Fallback FIFA points (Jan 19, 2026). Overridden at runtime by live API.
 const groupTeams: Record<string, { name: string; rating: number }[]> = {
@@ -25,11 +34,11 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
     { name: 'Mexico', rating: 1658.82 },
     { name: 'South Africa', rating: 1485.33 },
     { name: 'South Korea', rating: 1611.84 },
-    { name: 'UEFA Playoff D', rating: 1550.00 },
+    { name: 'Czechia', rating: 1550.00 },
   ],
   B: [
     { name: 'Canada', rating: 1601.29 },
-    { name: 'UEFA Playoff A', rating: 1550.00 },
+    { name: 'Bosnia and Herzegovina', rating: 1550.00 },
     { name: 'Qatar', rating: 1461.79 },
     { name: 'Switzerland', rating: 1672.69 },
   ],
@@ -43,7 +52,7 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
     { name: 'United States', rating: 1680.00 },
     { name: 'Paraguay', rating: 1492.72 },
     { name: 'Australia', rating: 1583.86 },
-    { name: 'UEFA Playoff C', rating: 1530.00 },
+    { name: 'Türkiye', rating: 1530.00 },
   ],
   E: [
     { name: 'Germany', rating: 1724.15 },
@@ -55,7 +64,7 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
     { name: 'Netherlands', rating: 1761.71 },
     { name: 'Japan', rating: 1665.50 },
     { name: 'Tunisia', rating: 1503.38 },
-    { name: 'UEFA Playoff B', rating: 1550.00 },
+    { name: 'Sweden', rating: 1550.00 },
   ],
   G: [
     { name: 'Belgium', rating: 1730.71 },
@@ -73,7 +82,7 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
     { name: 'France', rating: 1870.00 },
     { name: 'Senegal', rating: 1706.83 },
     { name: 'Norway', rating: 1553.14 },
-    { name: 'Intercontinental Playoff 2', rating: 1400.00 },
+    { name: 'Iraq', rating: 1400.00 },
   ],
   J: [
     { name: 'Argentina', rating: 1867.25 },
@@ -85,7 +94,7 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
     { name: 'Portugal', rating: 1756.12 },
     { name: 'Colombia', rating: 1727.33 },
     { name: 'Uzbekistan', rating: 1456.93 },
-    { name: 'Intercontinental Playoff 1', rating: 1400.00 },
+    { name: 'DR Congo', rating: 1400.00 },
   ],
   L: [
     { name: 'England', rating: 1823.39 },
@@ -154,12 +163,135 @@ const venueCity = (venue: string): string => {
   if (venue.includes('Lincoln Financial')) return 'Philadelphia, PA'
   if (venue.includes('Estadio BBVA')) return 'Monterrey, Mexico'
   if (venue.includes('Estadio Azteca') || venue.includes('Estadio Banorte')) return 'Mexico City, Mexico'
+  if (venue.includes('Estadio Akron')) return 'Guadalajara, Mexico'
   if (venue.includes('BMO Field')) return 'Toronto, Canada'
   if (venue.includes('BC Place')) return 'Vancouver, Canada'
   return venue
 }
 
 const isDallas = (venue: string): boolean => venue.includes('AT&T Stadium')
+
+// ─── Group stage schedule (72 matches) ──────────────────────────
+const groupMatches: GroupMatch[] = [
+  // ── Group A: Mexico, South Africa, South Korea, Czechia ──
+  { matchNum: 1, group: 'A', date: 'Wed, Jun 11 • 3:00 PM ET', teamA: 'Mexico', teamB: 'South Africa', venue: 'Estadio Azteca, Mexico City, Mexico' },
+  { matchNum: 2, group: 'A', date: 'Wed, Jun 11 • 10:00 PM ET', teamA: 'South Korea', teamB: 'Czechia', venue: 'Estadio Akron, Guadalajara, Mexico' },
+  { matchNum: 25, group: 'A', date: 'Thu, Jun 18 • 12:00 PM ET', teamA: 'Czechia', teamB: 'South Africa', venue: 'Mercedes-Benz Stadium, Atlanta, GA' },
+  { matchNum: 26, group: 'A', date: 'Thu, Jun 18 • 11:00 PM ET', teamA: 'Mexico', teamB: 'South Korea', venue: 'Estadio Akron, Guadalajara, Mexico' },
+  { matchNum: 49, group: 'A', date: 'Tue, Jun 24 • 9:00 PM ET', teamA: 'Czechia', teamB: 'Mexico', venue: 'Estadio Azteca, Mexico City, Mexico' },
+  { matchNum: 50, group: 'A', date: 'Tue, Jun 24 • 9:00 PM ET', teamA: 'South Africa', teamB: 'South Korea', venue: 'Estadio BBVA, Monterrey, Mexico' },
+  // ── Group B: Canada, Bosnia and Herzegovina, Qatar, Switzerland ──
+  { matchNum: 3, group: 'B', date: 'Thu, Jun 12 • 3:00 PM ET', teamA: 'Canada', teamB: 'Bosnia and Herzegovina', venue: 'BMO Field, Toronto, Canada' },
+  { matchNum: 5, group: 'B', date: 'Fri, Jun 13 • 3:00 PM ET', teamA: 'Qatar', teamB: 'Switzerland', venue: "Levi's Stadium, Santa Clara, CA" },
+  { matchNum: 27, group: 'B', date: 'Thu, Jun 18 • 3:00 PM ET', teamA: 'Switzerland', teamB: 'Bosnia and Herzegovina', venue: 'SoFi Stadium, Los Angeles, CA' },
+  { matchNum: 28, group: 'B', date: 'Thu, Jun 18 • 6:00 PM ET', teamA: 'Canada', teamB: 'Qatar', venue: 'BC Place, Vancouver, Canada' },
+  { matchNum: 51, group: 'B', date: 'Tue, Jun 24 • 3:00 PM ET', teamA: 'Switzerland', teamB: 'Canada', venue: 'BC Place, Vancouver, Canada' },
+  { matchNum: 52, group: 'B', date: 'Tue, Jun 24 • 3:00 PM ET', teamA: 'Bosnia and Herzegovina', teamB: 'Qatar', venue: 'Lumen Field, Seattle, WA' },
+  // ── Group C: Brazil, Morocco, Scotland, Haiti ──
+  { matchNum: 6, group: 'C', date: 'Fri, Jun 13 • 6:00 PM ET', teamA: 'Brazil', teamB: 'Morocco', venue: 'MetLife Stadium, East Rutherford, NJ' },
+  { matchNum: 7, group: 'C', date: 'Fri, Jun 13 • 9:00 PM ET', teamA: 'Haiti', teamB: 'Scotland', venue: 'Gillette Stadium, Foxborough, MA' },
+  { matchNum: 29, group: 'C', date: 'Thu, Jun 19 • 6:00 PM ET', teamA: 'Scotland', teamB: 'Morocco', venue: 'Gillette Stadium, Foxborough, MA' },
+  { matchNum: 30, group: 'C', date: 'Thu, Jun 19 • 9:00 PM ET', teamA: 'Brazil', teamB: 'Haiti', venue: 'Lincoln Financial Field, Philadelphia, PA' },
+  { matchNum: 53, group: 'C', date: 'Tue, Jun 24 • 6:00 PM ET', teamA: 'Morocco', teamB: 'Haiti', venue: 'Mercedes-Benz Stadium, Atlanta, GA' },
+  { matchNum: 54, group: 'C', date: 'Tue, Jun 24 • 6:00 PM ET', teamA: 'Scotland', teamB: 'Brazil', venue: 'Hard Rock Stadium, Miami, FL' },
+  // ── Group D: United States, Paraguay, Australia, Türkiye ──
+  { matchNum: 4, group: 'D', date: 'Thu, Jun 12 • 9:00 PM ET', teamA: 'United States', teamB: 'Paraguay', venue: 'SoFi Stadium, Los Angeles, CA' },
+  { matchNum: 8, group: 'D', date: 'Sat, Jun 14 • 12:00 AM ET', teamA: 'Australia', teamB: 'Türkiye', venue: 'BC Place, Vancouver, Canada' },
+  { matchNum: 31, group: 'D', date: 'Thu, Jun 19 • 3:00 PM ET', teamA: 'United States', teamB: 'Australia', venue: 'Lumen Field, Seattle, WA' },
+  { matchNum: 32, group: 'D', date: 'Sat, Jun 20 • 12:00 AM ET', teamA: 'Türkiye', teamB: 'Paraguay', venue: "Levi's Stadium, Santa Clara, CA" },
+  { matchNum: 55, group: 'D', date: 'Wed, Jun 25 • 10:00 PM ET', teamA: 'Türkiye', teamB: 'United States', venue: 'SoFi Stadium, Los Angeles, CA' },
+  { matchNum: 56, group: 'D', date: 'Wed, Jun 25 • 10:00 PM ET', teamA: 'Paraguay', teamB: 'Australia', venue: "Levi's Stadium, Santa Clara, CA" },
+  // ── Group E: Germany, Curaçao, Côte d'Ivoire, Ecuador ──
+  { matchNum: 9, group: 'E', date: 'Sun, Jun 14 • 1:00 PM ET', teamA: 'Germany', teamB: 'Curaçao', venue: 'NRG Stadium, Houston, TX' },
+  { matchNum: 10, group: 'E', date: 'Sun, Jun 14 • 7:00 PM ET', teamA: "Côte d'Ivoire", teamB: 'Ecuador', venue: 'Lincoln Financial Field, Philadelphia, PA' },
+  { matchNum: 33, group: 'E', date: 'Sat, Jun 20 • 4:00 PM ET', teamA: 'Germany', teamB: "Côte d'Ivoire", venue: 'BMO Field, Toronto, Canada' },
+  { matchNum: 34, group: 'E', date: 'Sat, Jun 20 • 8:00 PM ET', teamA: 'Ecuador', teamB: 'Curaçao', venue: 'Arrowhead Stadium, Kansas City, MO' },
+  { matchNum: 57, group: 'E', date: 'Wed, Jun 25 • 4:00 PM ET', teamA: 'Ecuador', teamB: 'Germany', venue: 'MetLife Stadium, East Rutherford, NJ' },
+  { matchNum: 58, group: 'E', date: 'Wed, Jun 25 • 4:00 PM ET', teamA: 'Curaçao', teamB: "Côte d'Ivoire", venue: 'Lincoln Financial Field, Philadelphia, PA' },
+  // ── Group F: Netherlands, Japan, Tunisia, Sweden ──
+  { matchNum: 11, group: 'F', date: 'Sun, Jun 14 • 4:00 PM ET', teamA: 'Netherlands', teamB: 'Japan', venue: 'AT&T Stadium, Arlington, TX' },
+  { matchNum: 12, group: 'F', date: 'Sun, Jun 14 • 10:00 PM ET', teamA: 'Sweden', teamB: 'Tunisia', venue: 'Estadio BBVA, Monterrey, Mexico' },
+  { matchNum: 35, group: 'F', date: 'Sat, Jun 20 • 1:00 PM ET', teamA: 'Netherlands', teamB: 'Sweden', venue: 'NRG Stadium, Houston, TX' },
+  { matchNum: 36, group: 'F', date: 'Sun, Jun 21 • 12:00 AM ET', teamA: 'Tunisia', teamB: 'Japan', venue: 'Estadio Akron, Guadalajara, Mexico' },
+  { matchNum: 59, group: 'F', date: 'Wed, Jun 25 • 7:00 PM ET', teamA: 'Japan', teamB: 'Sweden', venue: 'AT&T Stadium, Arlington, TX' },
+  { matchNum: 60, group: 'F', date: 'Wed, Jun 25 • 7:00 PM ET', teamA: 'Tunisia', teamB: 'Netherlands', venue: 'Arrowhead Stadium, Kansas City, MO' },
+  // ── Group G: Belgium, Egypt, Iran, New Zealand ──
+  { matchNum: 13, group: 'G', date: 'Mon, Jun 15 • 6:00 PM ET', teamA: 'Belgium', teamB: 'Egypt', venue: 'Lumen Field, Seattle, WA' },
+  { matchNum: 14, group: 'G', date: 'Tue, Jun 16 • 12:00 AM ET', teamA: 'Iran', teamB: 'New Zealand', venue: 'SoFi Stadium, Los Angeles, CA' },
+  { matchNum: 37, group: 'G', date: 'Sun, Jun 21 • 3:00 PM ET', teamA: 'Belgium', teamB: 'Iran', venue: 'SoFi Stadium, Los Angeles, CA' },
+  { matchNum: 38, group: 'G', date: 'Sun, Jun 21 • 9:00 PM ET', teamA: 'New Zealand', teamB: 'Egypt', venue: 'BC Place, Vancouver, Canada' },
+  { matchNum: 61, group: 'G', date: 'Thu, Jun 26 • 11:00 PM ET', teamA: 'Egypt', teamB: 'Iran', venue: 'Lumen Field, Seattle, WA' },
+  { matchNum: 62, group: 'G', date: 'Thu, Jun 26 • 11:00 PM ET', teamA: 'New Zealand', teamB: 'Belgium', venue: 'BC Place, Vancouver, Canada' },
+  // ── Group H: Spain, Cape Verde, Saudi Arabia, Uruguay ──
+  { matchNum: 15, group: 'H', date: 'Mon, Jun 15 • 12:00 PM ET', teamA: 'Spain', teamB: 'Cape Verde', venue: 'Mercedes-Benz Stadium, Atlanta, GA' },
+  { matchNum: 16, group: 'H', date: 'Mon, Jun 15 • 6:00 PM ET', teamA: 'Saudi Arabia', teamB: 'Uruguay', venue: 'Hard Rock Stadium, Miami, FL' },
+  { matchNum: 39, group: 'H', date: 'Sun, Jun 21 • 12:00 PM ET', teamA: 'Spain', teamB: 'Saudi Arabia', venue: 'Mercedes-Benz Stadium, Atlanta, GA' },
+  { matchNum: 40, group: 'H', date: 'Sun, Jun 21 • 6:00 PM ET', teamA: 'Uruguay', teamB: 'Cape Verde', venue: 'Hard Rock Stadium, Miami, FL' },
+  { matchNum: 63, group: 'H', date: 'Fri, Jun 26 • 8:00 PM ET', teamA: 'Uruguay', teamB: 'Spain', venue: 'Estadio Akron, Guadalajara, Mexico' },
+  { matchNum: 64, group: 'H', date: 'Fri, Jun 26 • 8:00 PM ET', teamA: 'Cape Verde', teamB: 'Saudi Arabia', venue: 'NRG Stadium, Houston, TX' },
+  // ── Group I: France, Senegal, Iraq, Norway ──
+  { matchNum: 17, group: 'I', date: 'Tue, Jun 16 • 3:00 PM ET', teamA: 'France', teamB: 'Senegal', venue: 'MetLife Stadium, East Rutherford, NJ' },
+  { matchNum: 18, group: 'I', date: 'Tue, Jun 16 • 6:00 PM ET', teamA: 'Iraq', teamB: 'Norway', venue: 'Gillette Stadium, Foxborough, MA' },
+  { matchNum: 41, group: 'I', date: 'Mon, Jun 22 • 5:00 PM ET', teamA: 'France', teamB: 'Iraq', venue: 'Lincoln Financial Field, Philadelphia, PA' },
+  { matchNum: 42, group: 'I', date: 'Mon, Jun 22 • 8:00 PM ET', teamA: 'Norway', teamB: 'Senegal', venue: 'MetLife Stadium, East Rutherford, NJ' },
+  { matchNum: 65, group: 'I', date: 'Fri, Jun 26 • 3:00 PM ET', teamA: 'Norway', teamB: 'France', venue: 'Gillette Stadium, Foxborough, MA' },
+  { matchNum: 66, group: 'I', date: 'Fri, Jun 26 • 3:00 PM ET', teamA: 'Senegal', teamB: 'Iraq', venue: 'BMO Field, Toronto, Canada' },
+  // ── Group J: Argentina, Algeria, Austria, Jordan ──
+  { matchNum: 19, group: 'J', date: 'Tue, Jun 16 • 9:00 PM ET', teamA: 'Argentina', teamB: 'Algeria', venue: 'Arrowhead Stadium, Kansas City, MO' },
+  { matchNum: 20, group: 'J', date: 'Wed, Jun 17 • 12:00 AM ET', teamA: 'Austria', teamB: 'Jordan', venue: "Levi's Stadium, Santa Clara, CA" },
+  { matchNum: 43, group: 'J', date: 'Mon, Jun 22 • 1:00 PM ET', teamA: 'Argentina', teamB: 'Austria', venue: 'AT&T Stadium, Arlington, TX' },
+  { matchNum: 44, group: 'J', date: 'Mon, Jun 22 • 11:00 PM ET', teamA: 'Jordan', teamB: 'Algeria', venue: "Levi's Stadium, Santa Clara, CA" },
+  { matchNum: 67, group: 'J', date: 'Sat, Jun 27 • 10:00 PM ET', teamA: 'Jordan', teamB: 'Argentina', venue: 'AT&T Stadium, Arlington, TX' },
+  { matchNum: 68, group: 'J', date: 'Sat, Jun 27 • 10:00 PM ET', teamA: 'Algeria', teamB: 'Austria', venue: 'Arrowhead Stadium, Kansas City, MO' },
+  // ── Group K: Portugal, DR Congo, Uzbekistan, Colombia ──
+  { matchNum: 21, group: 'K', date: 'Wed, Jun 17 • 1:00 PM ET', teamA: 'Portugal', teamB: 'DR Congo', venue: 'NRG Stadium, Houston, TX' },
+  { matchNum: 22, group: 'K', date: 'Wed, Jun 17 • 10:00 PM ET', teamA: 'Uzbekistan', teamB: 'Colombia', venue: 'Estadio Azteca, Mexico City, Mexico' },
+  { matchNum: 45, group: 'K', date: 'Tue, Jun 23 • 1:00 PM ET', teamA: 'Portugal', teamB: 'Uzbekistan', venue: 'NRG Stadium, Houston, TX' },
+  { matchNum: 46, group: 'K', date: 'Tue, Jun 23 • 10:00 PM ET', teamA: 'Colombia', teamB: 'DR Congo', venue: 'Estadio Akron, Guadalajara, Mexico' },
+  { matchNum: 69, group: 'K', date: 'Sat, Jun 27 • 7:30 PM ET', teamA: 'Colombia', teamB: 'Portugal', venue: 'Hard Rock Stadium, Miami, FL' },
+  { matchNum: 70, group: 'K', date: 'Sat, Jun 27 • 7:30 PM ET', teamA: 'DR Congo', teamB: 'Uzbekistan', venue: 'Mercedes-Benz Stadium, Atlanta, GA' },
+  // ── Group L: England, Croatia, Ghana, Panama ──
+  { matchNum: 23, group: 'L', date: 'Wed, Jun 17 • 4:00 PM ET', teamA: 'England', teamB: 'Croatia', venue: 'AT&T Stadium, Arlington, TX' },
+  { matchNum: 24, group: 'L', date: 'Wed, Jun 17 • 7:00 PM ET', teamA: 'Ghana', teamB: 'Panama', venue: 'BMO Field, Toronto, Canada' },
+  { matchNum: 47, group: 'L', date: 'Tue, Jun 23 • 4:00 PM ET', teamA: 'England', teamB: 'Ghana', venue: 'Gillette Stadium, Foxborough, MA' },
+  { matchNum: 48, group: 'L', date: 'Tue, Jun 23 • 7:00 PM ET', teamA: 'Panama', teamB: 'Croatia', venue: 'BMO Field, Toronto, Canada' },
+  { matchNum: 71, group: 'L', date: 'Sat, Jun 27 • 5:00 PM ET', teamA: 'Panama', teamB: 'England', venue: 'MetLife Stadium, East Rutherford, NJ' },
+  { matchNum: 72, group: 'L', date: 'Sat, Jun 27 • 5:00 PM ET', teamA: 'Croatia', teamB: 'Ghana', venue: 'Lincoln Financial Field, Philadelphia, PA' },
+]
+
+const getTeamGroupMatches = (teamName: string): GroupMatch[] =>
+  groupMatches.filter(m => m.teamA === teamName || m.teamB === teamName)
+
+const getVenueGroupMatches = (venueCityName: string): GroupMatch[] =>
+  groupMatches.filter(m => venueCity(m.venue) === venueCityName)
+
+const getTeamGroup = (teamName: string): string =>
+  Object.entries(groupTeams).find(([, teams]) => teams.some(t => t.name === teamName))?.[0] || '?'
+
+const allVenueCities = (): string[] => {
+  const cities = new Set<string>()
+  for (const m of groupMatches) cities.add(venueCity(m.venue))
+  for (const m of allMatches) cities.add(venueCity(m.venue))
+  const arr = Array.from(cities)
+  arr.sort((a, b) => {
+    if (a.includes('Dallas')) return -1
+    if (b.includes('Dallas')) return 1
+    return a.localeCompare(b)
+  })
+  return arr
+}
+
+const groupMatchResult = (gm: GroupMatch): { scoreA: number; scoreB: number } | null => {
+  const groupResults = actualGroupResults[gm.group]
+  if (!groupResults) return null
+  const found = groupResults.find(r =>
+    (r.teamA === gm.teamA && r.teamB === gm.teamB) ||
+    (r.teamA === gm.teamB && r.teamB === gm.teamA)
+  )
+  if (!found) return null
+  if (found.teamA === gm.teamA) return { scoreA: found.scoreA, scoreB: found.scoreB }
+  return { scoreA: found.scoreB, scoreB: found.scoreA }
+}
 
 // ─── All knockout matches ────────────────────────────────────────
 const allMatches: KnockoutMatch[] = [
@@ -439,6 +571,10 @@ export default function Home() {
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [venueViewResults, setVenueViewResults] = useState<any>(null)
   const [selectedVenue, setSelectedVenue] = useState<string>('Dallas/Arlington, TX')
+  const [selectedTeam, setSelectedTeam] = useState<string>('')
+  const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
+  const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
+  const [teamGroupExpanded, setTeamGroupExpanded] = useState(true)
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1120,9 +1256,10 @@ export default function Home() {
       const iterations = 10000
       const groups = Object.keys(groupTeams)
 
-      // Per-match participant tracker: matchNum → teamName → count
-      const matchParticipants: Record<number, Record<string, number>> = {}
-      for (const m of allMatches) matchParticipants[m.matchNum] = {}
+      // Per-match participant tracker: matchNum → side → teamName → count
+      const matchSideA: Record<number, Record<string, number>> = {}
+      const matchSideB: Record<number, Record<string, number>> = {}
+      for (const m of allMatches) { matchSideA[m.matchNum] = {}; matchSideB[m.matchNum] = {} }
 
       const r32List = allMatches.filter(m => m.round === 'R32')
       const r16List = allMatches.filter(m => m.round === 'R16')
@@ -1179,8 +1316,8 @@ export default function Home() {
             tA = gs[m.groups![0]][0]
             tB = thirdAssign[m.matchNum] || gs[m.groups![0]][2]
           }
-          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
-          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
+          matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
           const w = simulateKnockoutMatch(tA.rating, tB.rating)
           winners[m.matchNum] = w === 'A' ? tA : tB
         }
@@ -1188,8 +1325,8 @@ export default function Home() {
         // 5. R16
         for (const m of r16List) {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
-          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
-          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
+          matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
           const w = simulateKnockoutMatch(tA.rating, tB.rating)
           winners[m.matchNum] = w === 'A' ? tA : tB
         }
@@ -1197,8 +1334,8 @@ export default function Home() {
         // 6. QF
         for (const m of qfList) {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
-          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
-          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
+          matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
           const w = simulateKnockoutMatch(tA.rating, tB.rating)
           winners[m.matchNum] = w === 'A' ? tA : tB
         }
@@ -1207,8 +1344,8 @@ export default function Home() {
         const losers: Record<number, { name: string; rating: number }> = {}
         for (const m of sfList) {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
-          matchParticipants[m.matchNum][tA.name] = (matchParticipants[m.matchNum][tA.name] || 0) + 1
-          matchParticipants[m.matchNum][tB.name] = (matchParticipants[m.matchNum][tB.name] || 0) + 1
+          matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
+          matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
           const w = simulateKnockoutMatch(tA.rating, tB.rating)
           winners[m.matchNum] = w === 'A' ? tA : tB
           losers[m.matchNum] = w === 'A' ? tB : tA
@@ -1217,15 +1354,15 @@ export default function Home() {
         // 8. 3rd Place
         {
           const tA = losers[thirdPlaceMatch.feedsFrom![0]], tB = losers[thirdPlaceMatch.feedsFrom![1]]
-          matchParticipants[thirdPlaceMatch.matchNum][tA.name] = (matchParticipants[thirdPlaceMatch.matchNum][tA.name] || 0) + 1
-          matchParticipants[thirdPlaceMatch.matchNum][tB.name] = (matchParticipants[thirdPlaceMatch.matchNum][tB.name] || 0) + 1
+          matchSideA[thirdPlaceMatch.matchNum][tA.name] = (matchSideA[thirdPlaceMatch.matchNum][tA.name] || 0) + 1
+          matchSideB[thirdPlaceMatch.matchNum][tB.name] = (matchSideB[thirdPlaceMatch.matchNum][tB.name] || 0) + 1
         }
 
         // 9. Final
         {
           const tA = winners[finalMatch.feedsFrom![0]], tB = winners[finalMatch.feedsFrom![1]]
-          matchParticipants[finalMatch.matchNum][tA.name] = (matchParticipants[finalMatch.matchNum][tA.name] || 0) + 1
-          matchParticipants[finalMatch.matchNum][tB.name] = (matchParticipants[finalMatch.matchNum][tB.name] || 0) + 1
+          matchSideA[finalMatch.matchNum][tA.name] = (matchSideA[finalMatch.matchNum][tA.name] || 0) + 1
+          matchSideB[finalMatch.matchNum][tB.name] = (matchSideB[finalMatch.matchNum][tB.name] || 0) + 1
         }
       }
 
@@ -1234,16 +1371,25 @@ export default function Home() {
       for (const m of allMatches) {
         const city = venueCity(m.venue)
         if (!venueData[city]) venueData[city] = { matches: [] }
-        const teams = Object.entries(matchParticipants[m.matchNum])
+        const sideA = Object.entries(matchSideA[m.matchNum])
           .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
           .sort((a, b) => b.pct - a.pct)
+        const sideB = Object.entries(matchSideB[m.matchNum])
+          .map(([name, count]) => ({ name, pct: (count / iterations) * 100 }))
+          .sort((a, b) => b.pct - a.pct)
+        const sideALabel = m.round === 'R32'
+          ? (m.type === 'runner' ? `2nd Grp ${m.groups?.[0]}` : `1st Grp ${m.groups?.[0]}`)
+          : m.round === '3rd' ? `Loser M${m.feedsFrom?.[0]}` : `Winner M${m.feedsFrom?.[0] || '?'}`
+        const sideBLabel = m.round === 'R32'
+          ? (m.type === 'winner_vs_3rd' ? `3rd Place` : `2nd Grp ${m.groups?.[1]}`)
+          : m.round === '3rd' ? `Loser M${m.feedsFrom?.[1]}` : `Winner M${m.feedsFrom?.[1] || '?'}`
         venueData[city].matches.push({
           matchNum: m.matchNum,
           round: m.round,
           date: m.date,
           matchup: m.matchup,
           title: m.title,
-          teams,
+          sideA, sideB, sideALabel, sideBLabel,
         })
       }
 
@@ -1380,15 +1526,15 @@ export default function Home() {
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <Head>
-        <title>WC 2026 Knockout Tracker</title>
+        <title>WC 2026 Match Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <h1 style={{ color: '#003366', fontSize: '28px', marginBottom: '5px' }}>
-        2026 World Cup &mdash; Knockout Stage Tracker
+        2026 World Cup &mdash; Match Tracker
       </h1>
       <p style={{ color: '#666', fontSize: '14px', marginTop: 0, marginBottom: '20px' }}>
-        R32 through Final &bull; Poisson simulation &bull; 10,000 iterations
+        Group stage &amp; knockout rounds &bull; Poisson simulation &bull; 10,000 iterations
       </p>
 
       {/* ── View mode tabs ── */}
@@ -1780,6 +1926,95 @@ export default function Home() {
       {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
       {viewMode === 'team' && (
         <div>
+          {/* Team selector */}
+          <div style={{ marginBottom: '20px' }}>
+            <select
+              value={selectedTeam}
+              onChange={e => setSelectedTeam(e.target.value)}
+              style={{
+                padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
+                border: '2px solid #14967f', background: 'white', color: '#0d7c66',
+                fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
+              }}
+            >
+              <option value="">Select a team to view schedule...</option>
+              {Object.entries(groupTeams)
+                .flatMap(([g, teams]) => teams.map(t => ({ ...t, group: g })))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(t => (
+                  <option key={t.name} value={t.name}>
+                    {t.name} (Group {t.group})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Group stage schedule for selected team */}
+          {selectedTeam && (() => {
+            const teamGames = getTeamGroupMatches(selectedTeam)
+            const group = getTeamGroup(selectedTeam)
+            const groupRivals = groupTeams[group]?.filter(t => t.name !== selectedTeam) || []
+            return (
+              <div style={{ marginBottom: '20px' }}>
+                <button
+                  onClick={() => setTeamGroupExpanded(!teamGroupExpanded)}
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#14967f', color: 'white',
+                    border: 'none', borderRadius: teamGroupExpanded ? '8px 8px 0 0' : '8px',
+                    cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}
+                >
+                  <span>Group {group} Schedule — {selectedTeam}</span>
+                  <span style={{ fontSize: '14px' }}>{teamGroupExpanded ? '▼' : '▶'}</span>
+                </button>
+                {teamGroupExpanded && (
+                  <div style={{ background: '#f0faf7', borderRadius: '0 0 8px 8px', padding: '12px' }}>
+                    <div style={{ fontSize: '13px', color: '#555', marginBottom: '10px' }}>
+                      Group {group}: {groupTeams[group]?.map(t => t.name).join(', ')}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {teamGames.map(gm => {
+                        const result = groupMatchResult(gm)
+                        const opponent = gm.teamA === selectedTeam ? gm.teamB : gm.teamA
+                        const isHome = gm.teamA === selectedTeam
+                        return (
+                          <div key={gm.matchNum} style={{
+                            background: 'white', borderRadius: '8px', border: '1px solid #c8e6d8',
+                            padding: '12px 16px',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <span style={{ fontWeight: 'bold', fontSize: '15px' }}>
+                                  vs {opponent}
+                                </span>
+                                {result && (
+                                  <span style={{
+                                    marginLeft: '10px', background: '#ffd700', color: '#333',
+                                    padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
+                                  }}>
+                                    {isHome ? `${result.scoreA}–${result.scoreB}` : `${result.scoreB}–${result.scoreA}`} FINAL
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: '12px', color: '#0d7c66', fontWeight: 'bold' }}>
+                                M{gm.matchNum}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                              {gm.date} &bull; {venueCity(gm.venue)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Knockout simulation */}
           <button
             onClick={runTeamSimulation}
             disabled={calculating}
@@ -1836,6 +2071,40 @@ export default function Home() {
                       {expandedTeam === t.name && (
                         <tr key={`${t.name}-detail`} style={{ background: '#f0f4ff', borderBottom: '2px solid #003366' }}>
                           <td colSpan={9} style={{ padding: '15px 20px' }}>
+                            {/* Group stage matches in expanded row */}
+                            {(() => {
+                              const matches = getTeamGroupMatches(t.name)
+                              if (matches.length === 0) return null
+                              return (
+                                <div style={{ marginBottom: '15px' }}>
+                                  <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#0d7c66', marginBottom: '8px' }}>
+                                    Group {t.group} Schedule
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', marginBottom: '10px' }}>
+                                    {matches.map(gm => {
+                                      const result = groupMatchResult(gm)
+                                      const opp = gm.teamA === t.name ? gm.teamB : gm.teamA
+                                      return (
+                                        <div key={gm.matchNum} style={{ background: '#f0faf7', padding: '8px 10px', borderRadius: '6px', border: '1px solid #c8e6d8', fontSize: '12px' }}>
+                                          <div style={{ fontWeight: 'bold' }}>vs {opp}</div>
+                                          <div style={{ color: '#888', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
+                                          <div style={{ color: '#0d7c66', marginTop: '2px' }}>
+                                            {result ? (
+                                              <span style={{ fontWeight: 'bold' }}>
+                                                {gm.teamA === t.name ? `${result.scoreA}–${result.scoreB}` : `${result.scoreB}–${result.scoreA}`} Final
+                                              </span>
+                                            ) : (
+                                              gm.date.split('•')[0]?.trim()
+                                            )}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                            {/* Knockout venue breakdown */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
                               {(['R32', 'R16', 'QF', 'SF', 'Final'] as const).map(rd => {
                                 const data = t[rd]
@@ -1878,106 +2147,206 @@ export default function Home() {
       {/* ═══════════════════ VENUE VIEW ═══════════════════ */}
       {viewMode === 'venue' && (
         <div>
-          <button
-            onClick={runVenueSimulation}
-            disabled={calculating}
-            style={{
-              padding: '15px 30px', background: calculating ? '#ccc' : '#003366',
-              color: 'white', border: 'none', borderRadius: '8px',
-              cursor: calculating ? 'not-allowed' : 'pointer',
-              fontSize: '16px', fontWeight: 'bold', width: '100%', maxWidth: '400px',
-            }}
-          >
-            {calculating ? 'Simulating full tournament...' : 'Run Venue Simulation (10,000 iterations)'}
-          </button>
+          {/* Venue selector — always visible */}
+          <div style={{ marginBottom: '20px' }}>
+            <select
+              value={selectedVenue}
+              onChange={e => setSelectedVenue(e.target.value)}
+              style={{
+                padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
+                border: '2px solid #003366', background: 'white', color: '#003366',
+                fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
+              }}
+            >
+              {allVenueCities().map(city => {
+                const gCount = getVenueGroupMatches(city).length
+                const kCount = allMatches.filter(m => venueCity(m.venue) === city).length
+                return (
+                  <option key={city} value={city}>
+                    {city} — {gCount + kCount} matches ({gCount} group, {kCount} knockout)
+                  </option>
+                )
+              })}
+            </select>
+          </div>
 
-          {venueViewResults && (
-            <div style={{ marginTop: '20px' }}>
-              {/* Venue selector */}
+          {/* ── Group Stage Section ── */}
+          {(() => {
+            const venueGroupGames = getVenueGroupMatches(selectedVenue)
+            if (venueGroupGames.length === 0) return null
+            return (
               <div style={{ marginBottom: '20px' }}>
-                <select
-                  value={selectedVenue}
-                  onChange={e => setSelectedVenue(e.target.value)}
+                <button
+                  onClick={() => setVenueGroupExpanded(!venueGroupExpanded)}
                   style={{
-                    padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
-                    border: '2px solid #003366', background: 'white', color: '#003366',
-                    fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
+                    width: '100%', padding: '12px 16px', background: '#14967f', color: 'white',
+                    border: 'none', borderRadius: venueGroupExpanded ? '8px 8px 0 0' : '8px',
+                    cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}
                 >
-                  {Object.keys(venueViewResults)
-                    .sort((a, b) => {
-                      if (a.includes('Dallas')) return -1
-                      if (b.includes('Dallas')) return 1
-                      return a.localeCompare(b)
-                    })
-                    .map(city => (
-                      <option key={city} value={city}>
-                        {city} &mdash; {venueViewResults[city].matches.length} knockout {venueViewResults[city].matches.length === 1 ? 'match' : 'matches'}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              {/* Matches at selected venue */}
-              {venueViewResults[selectedVenue] && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {venueViewResults[selectedVenue].matches.map((match: any) => {
-                    const visibleTeams = match.teams.filter((t: any) => t.pct >= 1)
-                    const hiddenCount = match.teams.filter((t: any) => t.pct < 1).length
-                    return (
-                      <div key={match.matchNum} style={{
-                        background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0',
-                        overflow: 'hidden',
-                      }}>
-                        <div style={{
-                          background: roundColor[match.round] || '#003366',
-                          color: 'white', padding: '12px 16px',
+                  <span>Group Stage — {venueGroupGames.length} {venueGroupGames.length === 1 ? 'match' : 'matches'}</span>
+                  <span style={{ fontSize: '14px' }}>{venueGroupExpanded ? '▼' : '▶'}</span>
+                </button>
+                {venueGroupExpanded && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px', background: '#f0faf7', borderRadius: '0 0 8px 8px', padding: '12px' }}>
+                    {venueGroupGames.map(gm => {
+                      const result = groupMatchResult(gm)
+                      return (
+                        <div key={gm.matchNum} style={{
+                          background: 'white', borderRadius: '8px', border: '1px solid #c8e6d8', overflow: 'hidden',
                         }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '15px' }}>
-                            {match.title}
+                          <div style={{
+                            background: '#0d7c66', color: 'white', padding: '10px 16px',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          }}>
+                            <div>
+                              <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Match {gm.matchNum} — Group {gm.group}</span>
+                            </div>
+                            {result && (
+                              <span style={{
+                                background: '#ffd700', color: '#333', padding: '2px 8px', borderRadius: '4px',
+                                fontSize: '11px', fontWeight: 'bold',
+                              }}>FINAL</span>
+                            )}
                           </div>
-                          <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
-                            {match.date} &bull; {match.matchup}
+                          <div style={{ padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold' }}>
+                              <span>{gm.teamA}</span>
+                              {result ? (
+                                <span style={{ color: '#0d7c66', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
+                              ) : (
+                                <span style={{ color: '#999', fontSize: '14px' }}>vs</span>
+                              )}
+                              <span>{gm.teamB}</span>
+                            </div>
+                            <div style={{ textAlign: 'center', fontSize: '12px', color: '#888', marginTop: '6px' }}>
+                              {gm.date}
+                            </div>
                           </div>
                         </div>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ background: '#f5f5f5' }}>
-                              <th style={{ padding: '8px 16px', textAlign: 'left', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>Team</th>
-                              <th style={{ padding: '8px 16px', textAlign: 'right', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>P(Plays Here)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {visibleTeams.map((t: any) => (
-                              <tr key={t.name} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                <td style={{ padding: '6px 16px', fontSize: '14px', fontWeight: t.pct >= 10 ? 'bold' : 'normal' }}>
-                                  {t.name}
-                                </td>
-                                <td style={{ padding: '6px 16px', textAlign: 'right', fontSize: '14px', fontWeight: 'bold', color: roundColor[match.round] || '#003366' }}>
-                                  {t.pct.toFixed(1)}%
-                                </td>
-                              </tr>
-                            ))}
-                            {hiddenCount > 0 && (
-                              <tr>
-                                <td colSpan={2} style={{ padding: '6px 16px', fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-                                  + {hiddenCount} other {hiddenCount === 1 ? 'team' : 'teams'} with &lt;1% probability
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
-                <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
-                with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
-                {ratingSource && <> | Ratings: {ratingSource}</>}
+                      )
+                    })}
+                  </div>
+                )}
               </div>
+            )
+          })()}
+
+          {/* ── Knockout Section ── */}
+          {(() => {
+            const venueKnockoutGames = allMatches.filter(m => venueCity(m.venue) === selectedVenue)
+            if (venueKnockoutGames.length === 0) return null
+            return (
+              <div style={{ marginBottom: '20px' }}>
+                <button
+                  onClick={() => setVenueKnockoutExpanded(!venueKnockoutExpanded)}
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#003366', color: 'white',
+                    border: 'none', borderRadius: venueKnockoutExpanded ? '8px 8px 0 0' : '8px',
+                    cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}
+                >
+                  <span>Knockout Stage — {venueKnockoutGames.length} {venueKnockoutGames.length === 1 ? 'match' : 'matches'}</span>
+                  <span style={{ fontSize: '14px' }}>{venueKnockoutExpanded ? '▼' : '▶'}</span>
+                </button>
+                {venueKnockoutExpanded && (
+                  <div style={{ paddingTop: '12px' }}>
+                    {!venueViewResults ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
+                        <button
+                          onClick={runVenueSimulation}
+                          disabled={calculating}
+                          style={{
+                            padding: '12px 24px', background: calculating ? '#ccc' : '#003366',
+                            color: 'white', border: 'none', borderRadius: '8px',
+                            cursor: calculating ? 'not-allowed' : 'pointer',
+                            fontSize: '14px', fontWeight: 'bold',
+                          }}
+                        >
+                          {calculating ? 'Simulating...' : 'Run Simulation to see knockout probabilities'}
+                        </button>
+                      </div>
+                    ) : venueViewResults[selectedVenue] ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {venueViewResults[selectedVenue].matches.map((match: any) => {
+                          const visibleA = match.sideA.filter((t: any) => t.pct >= 1)
+                          const hiddenA = match.sideA.filter((t: any) => t.pct < 1).length
+                          const visibleB = match.sideB.filter((t: any) => t.pct >= 1)
+                          const hiddenB = match.sideB.filter((t: any) => t.pct < 1).length
+                          const rc = roundColor[match.round] || '#003366'
+                          return (
+                            <div key={match.matchNum} style={{
+                              background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0',
+                              overflow: 'hidden',
+                            }}>
+                              <div style={{
+                                background: rc, color: 'white', padding: '12px 16px',
+                              }}>
+                                <div style={{ fontWeight: 'bold', fontSize: '15px' }}>
+                                  {match.title}
+                                </div>
+                                <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
+                                  {match.date} &bull; {match.matchup}
+                                </div>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
+                                {/* Side A */}
+                                <div style={{ borderRight: '2px solid #e0e0e0' }}>
+                                  <div style={{ padding: '8px 12px', background: '#f5f5f5', fontSize: '11px', fontWeight: 'bold', color: '#666', textAlign: 'center' }}>
+                                    {match.sideALabel}
+                                  </div>
+                                  {visibleA.map((t: any) => (
+                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal' }}>{t.name}</span>
+                                      <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
+                                    </div>
+                                  ))}
+                                  {hiddenA > 0 && (
+                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+                                      +{hiddenA} other
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Side B */}
+                                <div>
+                                  <div style={{ padding: '8px 12px', background: '#f5f5f5', fontSize: '11px', fontWeight: 'bold', color: '#666', textAlign: 'center' }}>
+                                    {match.sideBLabel}
+                                  </div>
+                                  {visibleB.map((t: any) => (
+                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal' }}>{t.name}</span>
+                                      <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
+                                    </div>
+                                  ))}
+                                  {hiddenB > 0 && (
+                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+                                      +{hiddenB} other
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '12px', color: '#888', fontStyle: 'italic' }}>
+                        No knockout matches at this venue.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {venueViewResults && (
+            <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
+              <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
+              with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
+              {ratingSource && <> | Ratings: {ratingSource}</>}
             </div>
           )}
         </div>
