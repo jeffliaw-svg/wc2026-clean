@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Head from 'next/head'
 
 type TeamResult = {
@@ -575,6 +575,9 @@ export default function Home() {
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
   const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
   const [teamGroupExpanded, setTeamGroupExpanded] = useState(true)
+  const hasAutoRun = useRef(false)
+  const hasAutoRunTeam = useRef(false)
+  const hasAutoRunVenue = useRef(false)
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1542,6 +1545,28 @@ export default function Home() {
     </div>
   )
 
+  // ─── Auto-run simulations on first load ──────────────────────
+  useEffect(() => {
+    if (viewMode === 'match' && !hasAutoRun.current && !calculating) {
+      hasAutoRun.current = true
+      runSimulation()
+    }
+  }, [viewMode])
+
+  useEffect(() => {
+    if (viewMode === 'team' && !hasAutoRunTeam.current && !calculating) {
+      hasAutoRunTeam.current = true
+      runTeamSimulation()
+    }
+  }, [viewMode])
+
+  useEffect(() => {
+    if (viewMode === 'venue' && !hasAutoRunVenue.current && !calculating) {
+      hasAutoRunVenue.current = true
+      runVenueSimulation()
+    }
+  }, [viewMode])
+
   // ─── Render ────────────────────────────────────────────────────
 
   const grouped = groupMatchesByCity(roundMatches)
@@ -1802,29 +1827,10 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── Run simulation button (R32 only for now) ── */}
-      {canSimulate ? (
-        <button
-          onClick={runSimulation}
-          disabled={calculating}
-          style={{
-            padding: '15px 30px',
-            background: calculating ? '#ccc' : (roundColor[selectedRound] || '#003366'),
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: calculating ? 'not-allowed' : 'pointer',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            width: '100%',
-            maxWidth: '400px',
-          }}
-        >
-          {calculating ? 'Calculating...' : 'Run Simulation (10,000 iterations)'}
-        </button>
-      ) : (
-        <div style={{ padding: '20px', background: '#fff3cd', borderRadius: '8px', color: '#856404', fontSize: '14px' }}>
-          Select a match to simulate.
+      {/* ── Loading indicator (auto-runs on mount) ── */}
+      {calculating && !results && (
+        <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+          Running simulation (10,000 iterations)…
         </div>
       )}
 
@@ -1977,6 +1983,24 @@ export default function Home() {
         </div>
       )}
 
+      {/* ── Re-run button (small, muted) ── */}
+      {results && (
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={runSimulation}
+            disabled={calculating}
+            style={{
+              padding: '6px 16px', background: 'transparent',
+              color: '#999', border: '1px solid #ccc', borderRadius: '6px',
+              cursor: calculating ? 'not-allowed' : 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            {calculating ? 'Re-running…' : 'Re-Run Simulation'}
+          </button>
+        </div>
+      )}
+
       </>}
 
       {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
@@ -2070,19 +2094,12 @@ export default function Home() {
             )
           })()}
 
-          {/* Knockout simulation */}
-          <button
-            onClick={runTeamSimulation}
-            disabled={calculating}
-            style={{
-              padding: '15px 30px', background: calculating ? '#ccc' : '#003366',
-              color: 'white', border: 'none', borderRadius: '8px',
-              cursor: calculating ? 'not-allowed' : 'pointer',
-              fontSize: '16px', fontWeight: 'bold', width: '100%', maxWidth: '400px',
-            }}
-          >
-            {calculating ? 'Simulating full tournament...' : 'Run Full Tournament Simulation (10,000 iterations)'}
-          </button>
+          {/* Loading indicator (auto-runs on tab switch) */}
+          {calculating && !teamViewResults && (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+              Running full tournament simulation (10,000 iterations)…
+            </div>
+          )}
 
           {teamViewResults && (
             <div style={{ marginTop: '25px', overflowX: 'auto' }}>
@@ -2202,6 +2219,21 @@ export default function Home() {
                 with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
                 {ratingSource && <> | Ratings: {ratingSource}</>}
               </div>
+
+              <div style={{ marginTop: '15px', textAlign: 'center' }}>
+                <button
+                  onClick={runTeamSimulation}
+                  disabled={calculating}
+                  style={{
+                    padding: '6px 16px', background: 'transparent',
+                    color: '#999', border: '1px solid #ccc', borderRadius: '6px',
+                    cursor: calculating ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  {calculating ? 'Re-running…' : 'Re-Run Simulation'}
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -2317,19 +2349,8 @@ export default function Home() {
                 {venueKnockoutExpanded && (
                   <div style={{ paddingTop: '12px' }}>
                     {!venueViewResults ? (
-                      <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>
-                        <button
-                          onClick={runVenueSimulation}
-                          disabled={calculating}
-                          style={{
-                            padding: '12px 24px', background: calculating ? '#ccc' : '#003366',
-                            color: 'white', border: 'none', borderRadius: '8px',
-                            cursor: calculating ? 'not-allowed' : 'pointer',
-                            fontSize: '14px', fontWeight: 'bold',
-                          }}
-                        >
-                          {calculating ? 'Simulating...' : 'Run Simulation to see knockout probabilities'}
-                        </button>
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+                        {calculating ? 'Running simulation (10,000 iterations)…' : 'Loading…'}
                       </div>
                     ) : venueViewResults[selectedVenue] ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2406,11 +2427,27 @@ export default function Home() {
           })()}
 
           {venueViewResults && (
-            <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
-              <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
-              with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
-              {ratingSource && <> | Ratings: {ratingSource}</>}
-            </div>
+            <>
+              <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
+                <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
+                with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
+                {ratingSource && <> | Ratings: {ratingSource}</>}
+              </div>
+              <div style={{ marginTop: '15px', textAlign: 'center' }}>
+                <button
+                  onClick={runVenueSimulation}
+                  disabled={calculating}
+                  style={{
+                    padding: '6px 16px', background: 'transparent',
+                    color: '#999', border: '1px solid #ccc', borderRadius: '6px',
+                    cursor: calculating ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                  }}
+                >
+                  {calculating ? 'Re-running…' : 'Re-Run Simulation'}
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
