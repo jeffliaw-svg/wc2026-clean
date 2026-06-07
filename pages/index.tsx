@@ -824,6 +824,7 @@ export default function Home() {
           .filter(t => t.pct > 0)
           .sort((a, b) => b.pct - a.pct)
 
+        const sideANames = new Set(teamsA.map(t => t.name))
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
@@ -832,6 +833,10 @@ export default function Home() {
           highlightA: '2nd' as const,
           highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
+          matchSideA: teamWinPcts.filter(t => sideANames.has(t.name)),
+          matchSideB: teamWinPcts.filter(t => !sideANames.has(t.name)),
+          matchSideALabel: `2nd Group ${gA}`,
+          matchSideBLabel: `2nd Group ${gB}`,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
         })
@@ -875,6 +880,7 @@ export default function Home() {
           .filter(t => t.pct > 0)
           .sort((a, b) => b.pct - a.pct)
 
+        const sideANames2 = new Set(teamsA.map(t => t.name))
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupB: toResults(teamsB, positionsB),
@@ -883,6 +889,10 @@ export default function Home() {
           highlightA: '1st' as const,
           highlightB: '2nd' as const,
           matchWinPcts: teamWinPcts,
+          matchSideA: teamWinPcts.filter(t => sideANames2.has(t.name)),
+          matchSideB: teamWinPcts.filter(t => !sideANames2.has(t.name)),
+          matchSideALabel: `1st Group ${gA}`,
+          matchSideBLabel: `2nd Group ${gB}`,
           matchProbsA: calcGroupMatchProbs(teamsA),
           matchProbsB: calcGroupMatchProbs(teamsB),
         })
@@ -942,11 +952,16 @@ export default function Home() {
           .sort((a, b) => b.pct - a.pct)
           .slice(0, 8)
 
+        const sideANames3 = new Set(teamsA.map(t => t.name))
         setResults({
           groupA: toResults(teamsA, positionsA),
           groupALabel: `Group ${gA} (Winner)`,
           highlightA: '1st' as const,
           matchWinPcts: allWinPcts,
+          matchSideA: allWinPcts.filter(t => sideANames3.has(t.name)),
+          matchSideB: allWinPcts.filter(t => !sideANames3.has(t.name)),
+          matchSideALabel: `1st Group ${gA}`,
+          matchSideBLabel: `3rd Place`,
           matchProbsA: calcGroupMatchProbs(teamsA),
           thirdPlaceOpponents: thirdOppPcts,
           thirdPlacePools: pools,
@@ -1851,21 +1866,42 @@ export default function Home() {
             </div>
           )}
 
-          {results.matchWinPcts && results.matchWinPcts.length > 0 && (
+          {results.matchSideA && results.matchSideB && (
             <div style={{ marginTop: '25px', background: '#003366', padding: '20px', borderRadius: '8px', color: 'white' }}>
               <h4 style={{ margin: '0 0 15px 0', fontSize: '16px' }}>
                 Match {selectedMatch} Win Probability
               </h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px' }}>
-                {results.matchWinPcts.slice(0, 8).map((t: any, i: number) => (
-                  <div key={i} style={{
-                    background: 'rgba(255,255,255,0.1)', padding: '10px 15px',
-                    borderRadius: '6px', minWidth: '120px',
-                  }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
-                    <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', opacity: 0.7, fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {results.matchSideALabel}
                   </div>
-                ))}
+                  {results.matchSideA.map((t: any, i: number) => (
+                    <div key={i} style={{
+                      background: 'rgba(255,255,255,0.1)', padding: '8px 12px',
+                      borderRadius: '6px', marginBottom: '6px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
+                      <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', opacity: 0.7, fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {results.matchSideBLabel}
+                  </div>
+                  {results.matchSideB.map((t: any, i: number) => (
+                    <div key={i} style={{
+                      background: 'rgba(255,255,255,0.1)', padding: '8px 12px',
+                      borderRadius: '6px', marginBottom: '6px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
+                      <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
