@@ -575,7 +575,6 @@ export default function Home() {
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
   const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
   const [teamGroupExpanded, setTeamGroupExpanded] = useState(true)
-  const hasAutoRun = useRef(false)
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
 
@@ -1545,13 +1544,12 @@ export default function Home() {
     </div>
   )
 
-  // ─── Auto-run simulations on first load ──────────────────────
+  // ─── Auto-run simulations ────────────────────────────────────
   useEffect(() => {
-    if (viewMode === 'match' && !hasAutoRun.current && !calculating) {
-      hasAutoRun.current = true
+    if (viewMode === 'match' && !results && !calculating && canSimulate) {
       runSimulation()
     }
-  }, [viewMode])
+  }, [viewMode, selectedMatch, results])
 
   useEffect(() => {
     if (viewMode === 'team' && !hasAutoRunTeam.current && !calculating) {
@@ -1983,21 +1981,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── Re-run button (small, muted) ── */}
       {results && (
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button
-            onClick={runSimulation}
-            disabled={calculating}
+          <span
+            onClick={() => { if (!calculating) runSimulation() }}
             style={{
-              padding: '6px 16px', background: 'transparent',
-              color: '#999', border: '1px solid #ccc', borderRadius: '6px',
-              cursor: calculating ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
+              color: '#bbb', cursor: calculating ? 'default' : 'pointer',
+              fontSize: '11px', textDecoration: 'underline',
             }}
           >
-            {calculating ? 'Re-running…' : 'Re-Run Simulation'}
-          </button>
+            {calculating ? 're-running…' : 're-run simulation'}
+          </span>
         </div>
       )}
 
@@ -2221,18 +2215,15 @@ export default function Home() {
               </div>
 
               <div style={{ marginTop: '15px', textAlign: 'center' }}>
-                <button
-                  onClick={runTeamSimulation}
-                  disabled={calculating}
+                <span
+                  onClick={() => { if (!calculating) runTeamSimulation() }}
                   style={{
-                    padding: '6px 16px', background: 'transparent',
-                    color: '#999', border: '1px solid #ccc', borderRadius: '6px',
-                    cursor: calculating ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
+                    color: '#bbb', cursor: calculating ? 'default' : 'pointer',
+                    fontSize: '11px', textDecoration: 'underline',
                   }}
                 >
-                  {calculating ? 'Re-running…' : 'Re-Run Simulation'}
-                </button>
+                  {calculating ? 're-running…' : 're-run simulation'}
+                </span>
               </div>
             </div>
           )}
@@ -2434,18 +2425,15 @@ export default function Home() {
                 {ratingSource && <> | Ratings: {ratingSource}</>}
               </div>
               <div style={{ marginTop: '15px', textAlign: 'center' }}>
-                <button
-                  onClick={runVenueSimulation}
-                  disabled={calculating}
+                <span
+                  onClick={() => { if (!calculating) runVenueSimulation() }}
                   style={{
-                    padding: '6px 16px', background: 'transparent',
-                    color: '#999', border: '1px solid #ccc', borderRadius: '6px',
-                    cursor: calculating ? 'not-allowed' : 'pointer',
-                    fontSize: '12px',
+                    color: '#bbb', cursor: calculating ? 'default' : 'pointer',
+                    fontSize: '11px', textDecoration: 'underline',
                   }}
                 >
-                  {calculating ? 'Re-running…' : 'Re-Run Simulation'}
-                </button>
+                  {calculating ? 're-running…' : 're-run simulation'}
+                </span>
               </div>
             </>
           )}
