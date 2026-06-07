@@ -1553,6 +1553,16 @@ export default function Home() {
       <Head>
         <title>WC 2026 Match Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>{`
+          .venue-tip { position: relative; }
+          .venue-tip .tip-text {
+            display: none; position: absolute; bottom: 100%; left: 0;
+            background: #1a1a2e; color: white; padding: 4px 8px; border-radius: 4px;
+            font-size: 11px; white-space: nowrap; z-index: 10; pointer-events: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25); margin-bottom: 4px;
+          }
+          .venue-tip:hover .tip-text { display: block; }
+        `}</style>
       </Head>
 
       <h1 style={{ color: '#003366', fontSize: '28px', marginBottom: '5px' }}>
@@ -2162,13 +2172,17 @@ export default function Home() {
                                     </div>
                                     {data.venues.map((v: any, vi: number) => {
                                       const matchesHere = allMatches.filter(m => m.round === rd && venueCity(m.venue) === v.venue)
-                                      const tooltip = matchesHere.map(m => `M${m.matchNum}: ${m.date}`).join('\n')
                                       return (
-                                      <div key={vi} title={tooltip} style={{ fontSize: '12px', color: '#555', display: 'flex', justifyContent: 'space-between', marginTop: '2px', cursor: 'help' }}>
+                                      <div key={vi} className="venue-tip" style={{ fontSize: '12px', color: '#555', display: 'flex', justifyContent: 'space-between', marginTop: '2px', cursor: 'pointer' }}>
                                         <span>{v.venue}</span>
                                         <span style={{ fontWeight: 'bold', color: v.venue.includes('Dallas') ? '#0d6efd' : '#333' }}>
                                           {v.pct.toFixed(1)}%
                                         </span>
+                                        {matchesHere.length > 0 && (
+                                          <span className="tip-text">
+                                            {matchesHere.map(m => `M${m.matchNum}: ${m.date}`).join(' | ')}
+                                          </span>
+                                        )}
                                       </div>
                                     )})}
                                   </div>
