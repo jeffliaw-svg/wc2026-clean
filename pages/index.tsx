@@ -1452,7 +1452,15 @@ export default function Home() {
 
   // ─── Render Helpers ────────────────────────────────────────────
 
-  const renderGroupTable = (label: string, teamResults: TeamResult[], highlightCol: '1st' | '2nd' = '2nd') => (
+  const pctBg = (pct: number, max: number) => {
+    const intensity = Math.min(pct / Math.max(max, 1), 1)
+    const alpha = 0.08 + intensity * 0.25
+    return `rgba(0, 51, 102, ${alpha.toFixed(2)})`
+  }
+
+  const renderGroupTable = (label: string, teamResults: TeamResult[], highlightCol: '1st' | '2nd' = '2nd') => {
+    const maxVal = Math.max(...teamResults.map(r => highlightCol === '1st' ? r.first : r.second))
+    return (
     <div>
       <h4 style={{ color: '#003366', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
       <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
@@ -1465,22 +1473,24 @@ export default function Home() {
           </tr>
         </thead>
         <tbody>
-          {teamResults.map((r, i) => (
+          {teamResults.map((r, i) => {
+            const val = highlightCol === '1st' ? r.first : r.second
+            return (
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>{r.rating.toFixed(0)}</td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', ...(highlightCol === '1st' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', ...(highlightCol === '1st' ? { color: '#003366', fontWeight: 'bold', background: pctBg(r.first, maxVal) } : {}) }}>
                 {r.first.toFixed(1)}%
               </td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', ...(highlightCol === '2nd' ? { color: '#003366', fontWeight: 'bold', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' } : {}) }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', ...(highlightCol === '2nd' ? { color: '#003366', fontWeight: 'bold', background: pctBg(val, maxVal) } : {}) }}>
                 {r.second.toFixed(1)}%
               </td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </div>
-  )
+  )}
 
   const renderAdvanceTable = (label: string, teams: { name: string; pct: number }[], color: string = '#1a5276') => (
     <div>
@@ -2150,14 +2160,17 @@ export default function Home() {
                                     <div style={{ fontWeight: 'bold', fontSize: '13px', color: roundColor[rd] || '#003366', marginBottom: '6px' }}>
                                       {roundLabel[rd] || rd} &mdash; {data.total.toFixed(1)}%
                                     </div>
-                                    {data.venues.map((v: any, vi: number) => (
-                                      <div key={vi} style={{ fontSize: '12px', color: '#555', display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                                    {data.venues.map((v: any, vi: number) => {
+                                      const matchesHere = allMatches.filter(m => m.round === rd && venueCity(m.venue) === v.venue)
+                                      const tooltip = matchesHere.map(m => `M${m.matchNum}: ${m.date}`).join('\n')
+                                      return (
+                                      <div key={vi} title={tooltip} style={{ fontSize: '12px', color: '#555', display: 'flex', justifyContent: 'space-between', marginTop: '2px', cursor: 'help' }}>
                                         <span>{v.venue}</span>
                                         <span style={{ fontWeight: 'bold', color: v.venue.includes('Dallas') ? '#0d6efd' : '#333' }}>
                                           {v.pct.toFixed(1)}%
                                         </span>
                                       </div>
-                                    ))}
+                                    )})}
                                   </div>
                                 )
                               })}
