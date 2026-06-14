@@ -108,11 +108,28 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
 // Group stage: record actual match scores. Key = group letter.
 // When all 6 matches are recorded, group standings become deterministic.
 const actualGroupResults: Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]> = {
-  // Example — uncomment when matches are played:
-  // A: [
-  //   { teamA: 'Mexico', teamB: 'South Africa', scoreA: 2, scoreB: 1 },
-  //   { teamA: 'South Korea', teamB: 'UEFA Playoff D', scoreA: 3, scoreB: 0 },
-  // ],
+  A: [
+    { teamA: 'Mexico', teamB: 'South Africa', scoreA: 2, scoreB: 0 },
+    { teamA: 'South Korea', teamB: 'Czechia', scoreA: 2, scoreB: 1 },
+  ],
+  B: [
+    { teamA: 'Canada', teamB: 'Bosnia and Herzegovina', scoreA: 1, scoreB: 1 },
+    { teamA: 'Qatar', teamB: 'Switzerland', scoreA: 1, scoreB: 1 },
+  ],
+  C: [
+    { teamA: 'Brazil', teamB: 'Morocco', scoreA: 1, scoreB: 1 },
+    { teamA: 'Haiti', teamB: 'Scotland', scoreA: 0, scoreB: 1 },
+  ],
+  D: [
+    { teamA: 'United States', teamB: 'Paraguay', scoreA: 4, scoreB: 1 },
+    { teamA: 'Australia', teamB: 'Türkiye', scoreA: 2, scoreB: 0 },
+  ],
+  E: [
+    { teamA: 'Germany', teamB: 'Curaçao', scoreA: 7, scoreB: 1 },
+  ],
+  F: [
+    { teamA: 'Netherlands', teamB: 'Japan', scoreA: 0, scoreB: 0 },
+  ],
 }
 
 // Knockout stage: record actual match winners. Key = match number.
@@ -291,6 +308,30 @@ const groupMatchResult = (gm: GroupMatch): { scoreA: number; scoreB: number } | 
   if (!found) return null
   if (found.teamA === gm.teamA) return { scoreA: found.scoreA, scoreB: found.scoreB }
   return { scoreA: found.scoreB, scoreB: found.scoreA }
+}
+
+const getTeamRecord = (teamName: string): { w: number; d: number; l: number; gf: number; ga: number } => {
+  const matches = getTeamGroupMatches(teamName)
+  let w = 0, d = 0, l = 0, gf = 0, ga = 0
+  for (const gm of matches) {
+    const result = groupMatchResult(gm)
+    if (!result) continue
+    const isA = gm.teamA === teamName
+    const scored = isA ? result.scoreA : result.scoreB
+    const conceded = isA ? result.scoreB : result.scoreA
+    gf += scored; ga += conceded
+    if (scored > conceded) w++
+    else if (scored === conceded) d++
+    else l++
+  }
+  return { w, d, l, gf, ga }
+}
+
+const formatRecord = (teamName: string): string => {
+  const r = getTeamRecord(teamName)
+  const played = r.w + r.d + r.l
+  if (played === 0) return ''
+  return `${r.w}-${r.d}-${r.l}`
 }
 
 // ─── All knockout matches ────────────────────────────────────────
@@ -1479,7 +1520,12 @@ export default function Home() {
             const val = highlightCol === '1st' ? r.first : r.second
             return (
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
-              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{r.name}</td>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+                {r.name}
+                {formatRecord(r.name) && (
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>({formatRecord(r.name)})</span>
+                )}
+              </td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>{r.rating.toFixed(0)}</td>
               <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', ...(highlightCol === '1st' ? { color: '#003366', fontWeight: 'bold', background: pctBg(r.first, maxVal) } : {}) }}>
                 {r.first.toFixed(1)}%
@@ -1507,7 +1553,12 @@ export default function Home() {
         <tbody>
           {teams.map((t, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
-              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>{t.name}</td>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+                {t.name}
+                {formatRecord(t.name) && (
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>({formatRecord(t.name)})</span>
+                )}
+              </td>
               <td style={{ padding: '10px', textAlign: 'right', color, fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? '#f0f8ff' : '#e6f2ff' }}>
                 {t.pct.toFixed(1)}%
               </td>
@@ -1853,7 +1904,12 @@ export default function Home() {
                 <tbody>
                   {results.thirdPlaceOpponents.map((t: any, i: number) => (
                     <tr key={i} style={{ borderBottom: '1px solid #e0e0e0', background: i % 2 === 0 ? 'white' : '#f9f9f9' }}>
-                      <td style={{ padding: '8px' }}>{t.name}</td>
+                      <td style={{ padding: '8px' }}>
+                        {t.name}
+                        {formatRecord(t.name) && (
+                          <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888' }}>({formatRecord(t.name)})</span>
+                        )}
+                      </td>
                       <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</td>
                     </tr>
                   ))}
@@ -2029,13 +2085,16 @@ export default function Home() {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}
                 >
-                  <span>Group {group} Schedule — {selectedTeam}</span>
+                  <span>Group {group} Schedule — {selectedTeam}{formatRecord(selectedTeam) ? ` (${formatRecord(selectedTeam)})` : ''}</span>
                   <span style={{ fontSize: '14px' }}>{teamGroupExpanded ? '▼' : '▶'}</span>
                 </button>
                 {teamGroupExpanded && (
                   <div style={{ background: '#f0faf7', borderRadius: '0 0 8px 8px', padding: '12px' }}>
                     <div style={{ fontSize: '13px', color: '#555', marginBottom: '10px' }}>
-                      Group {group}: {groupTeams[group]?.map(t => t.name).join(', ')}
+                      Group {group}: {groupTeams[group]?.map(t => {
+                        const rec = formatRecord(t.name)
+                        return rec ? `${t.name} (${rec})` : t.name
+                      }).join(', ')}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {teamGames.map(gm => {
@@ -2052,14 +2111,21 @@ export default function Home() {
                                 <span style={{ fontWeight: 'bold', fontSize: '15px' }}>
                                   vs {opponent}
                                 </span>
-                                {result && (
-                                  <span style={{
-                                    marginLeft: '10px', background: '#ffd700', color: '#333',
-                                    padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
-                                  }}>
-                                    {isHome ? `${result.scoreA}–${result.scoreB}` : `${result.scoreB}–${result.scoreA}`} FINAL
-                                  </span>
-                                )}
+                                {result && (() => {
+                                  const myGoals = isHome ? result.scoreA : result.scoreB
+                                  const theirGoals = isHome ? result.scoreB : result.scoreA
+                                  const outcome = myGoals > theirGoals ? 'W' : myGoals === theirGoals ? 'D' : 'L'
+                                  const bg = outcome === 'W' ? '#28a745' : outcome === 'D' ? '#ffc107' : '#dc3545'
+                                  const fg = outcome === 'D' ? '#333' : 'white'
+                                  return (
+                                    <span style={{
+                                      marginLeft: '10px', background: bg, color: fg,
+                                      padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
+                                    }}>
+                                      {outcome} {myGoals}–{theirGoals}
+                                    </span>
+                                  )
+                                })()}
                               </div>
                               <span style={{ fontSize: '12px', color: '#0d7c66', fontWeight: 'bold' }}>
                                 M{gm.matchNum}
@@ -2115,6 +2181,11 @@ export default function Home() {
                       >
                         <td style={{ padding: '10px', fontWeight: 'bold', position: 'sticky', left: 0, background: i % 2 === 0 ? 'white' : '#f9f9f9', zIndex: 1 }}>
                           {t.name}
+                          {formatRecord(t.name) && (
+                            <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
+                              ({formatRecord(t.name)})
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '10px', textAlign: 'center', color: '#888', fontSize: '12px' }}>{t.group}</td>
                         <td style={{ padding: '10px', textAlign: 'right', color: '#888', fontSize: '12px' }}>{t.rating.toFixed(0)}</td>
@@ -2142,18 +2213,24 @@ export default function Home() {
                                       const result = groupMatchResult(gm)
                                       const opp = gm.teamA === t.name ? gm.teamB : gm.teamA
                                       return (
-                                        <div key={gm.matchNum} style={{ background: '#f0faf7', padding: '8px 10px', borderRadius: '6px', border: '1px solid #c8e6d8', fontSize: '12px' }}>
+                                        <div key={gm.matchNum} style={{ background: result ? 'white' : '#f0faf7', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#ddd' : '#c8e6d8'}`, fontSize: '12px' }}>
                                           <div style={{ fontWeight: 'bold' }}>vs {opp}</div>
                                           <div style={{ color: '#888', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
-                                          <div style={{ color: '#0d7c66', marginTop: '2px' }}>
-                                            {result ? (
-                                              <span style={{ fontWeight: 'bold' }}>
-                                                {gm.teamA === t.name ? `${result.scoreA}–${result.scoreB}` : `${result.scoreB}–${result.scoreA}`} Final
-                                              </span>
-                                            ) : (
-                                              gm.date.split('•')[0]?.trim()
-                                            )}
-                                          </div>
+                                          {result ? (() => {
+                                            const my = gm.teamA === t.name ? result.scoreA : result.scoreB
+                                            const their = gm.teamA === t.name ? result.scoreB : result.scoreA
+                                            const o = my > their ? 'W' : my === their ? 'D' : 'L'
+                                            const c = o === 'W' ? '#28a745' : o === 'D' ? '#b7950b' : '#dc3545'
+                                            return (
+                                              <div style={{ color: c, marginTop: '2px', fontWeight: 'bold' }}>
+                                                {o} {my}–{their}
+                                              </div>
+                                            )
+                                          })() : (
+                                            <div style={{ color: '#0d7c66', marginTop: '2px' }}>
+                                              {gm.date.split('•')[0]?.trim()}
+                                            </div>
+                                          )}
                                         </div>
                                       )
                                     })}
@@ -2290,13 +2367,13 @@ export default function Home() {
                           </div>
                           <div style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold' }}>
-                              <span>{gm.teamA}</span>
+                              <span>{gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
                               {result ? (
                                 <span style={{ color: '#0d7c66', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
                               ) : (
                                 <span style={{ color: '#999', fontSize: '14px' }}>vs</span>
                               )}
-                              <span>{gm.teamB}</span>
+                              <span>{gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
                             </div>
                             <div style={{ textAlign: 'center', fontSize: '12px', color: '#888', marginTop: '6px' }}>
                               {gm.date}
