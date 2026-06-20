@@ -107,28 +107,62 @@ const groupTeams: Record<string, { name: string; rating: number }[]> = {
 // ─── Actual Results (update as tournament progresses) ────────────
 // Group stage: record actual match scores. Key = group letter.
 // When all 6 matches are recorded, group standings become deterministic.
-const actualGroupResults: Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]> = {
+let actualGroupResults: Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]> = {
   A: [
     { teamA: 'Mexico', teamB: 'South Africa', scoreA: 2, scoreB: 0 },
     { teamA: 'South Korea', teamB: 'Czechia', scoreA: 2, scoreB: 1 },
+    { teamA: 'Mexico', teamB: 'South Korea', scoreA: 1, scoreB: 0 },
+    { teamA: 'Czechia', teamB: 'South Africa', scoreA: 1, scoreB: 1 },
   ],
   B: [
     { teamA: 'Canada', teamB: 'Bosnia and Herzegovina', scoreA: 1, scoreB: 1 },
     { teamA: 'Qatar', teamB: 'Switzerland', scoreA: 1, scoreB: 1 },
+    { teamA: 'Switzerland', teamB: 'Bosnia and Herzegovina', scoreA: 4, scoreB: 1 },
+    { teamA: 'Canada', teamB: 'Qatar', scoreA: 6, scoreB: 0 },
   ],
   C: [
     { teamA: 'Brazil', teamB: 'Morocco', scoreA: 1, scoreB: 1 },
     { teamA: 'Haiti', teamB: 'Scotland', scoreA: 0, scoreB: 1 },
+    { teamA: 'Scotland', teamB: 'Morocco', scoreA: 0, scoreB: 1 },
+    { teamA: 'Brazil', teamB: 'Haiti', scoreA: 3, scoreB: 0 },
   ],
   D: [
     { teamA: 'United States', teamB: 'Paraguay', scoreA: 4, scoreB: 1 },
     { teamA: 'Australia', teamB: 'Türkiye', scoreA: 2, scoreB: 0 },
+    { teamA: 'United States', teamB: 'Australia', scoreA: 2, scoreB: 0 },
+    { teamA: 'Türkiye', teamB: 'Paraguay', scoreA: 0, scoreB: 1 },
   ],
   E: [
     { teamA: 'Germany', teamB: 'Curaçao', scoreA: 7, scoreB: 1 },
+    { teamA: "Côte d'Ivoire", teamB: 'Ecuador', scoreA: 1, scoreB: 0 },
   ],
   F: [
-    { teamA: 'Netherlands', teamB: 'Japan', scoreA: 0, scoreB: 0 },
+    { teamA: 'Netherlands', teamB: 'Japan', scoreA: 2, scoreB: 2 },
+    { teamA: 'Sweden', teamB: 'Tunisia', scoreA: 5, scoreB: 1 },
+  ],
+  G: [
+    { teamA: 'Belgium', teamB: 'Egypt', scoreA: 1, scoreB: 1 },
+    { teamA: 'Iran', teamB: 'New Zealand', scoreA: 2, scoreB: 2 },
+  ],
+  H: [
+    { teamA: 'Spain', teamB: 'Cape Verde', scoreA: 0, scoreB: 0 },
+    { teamA: 'Saudi Arabia', teamB: 'Uruguay', scoreA: 1, scoreB: 1 },
+  ],
+  I: [
+    { teamA: 'France', teamB: 'Senegal', scoreA: 3, scoreB: 1 },
+    { teamA: 'Norway', teamB: 'Iraq', scoreA: 4, scoreB: 1 },
+  ],
+  J: [
+    { teamA: 'Argentina', teamB: 'Algeria', scoreA: 3, scoreB: 0 },
+    { teamA: 'Austria', teamB: 'Jordan', scoreA: 3, scoreB: 1 },
+  ],
+  K: [
+    { teamA: 'Portugal', teamB: 'DR Congo', scoreA: 1, scoreB: 1 },
+    { teamA: 'Colombia', teamB: 'Uzbekistan', scoreA: 3, scoreB: 1 },
+  ],
+  L: [
+    { teamA: 'England', teamB: 'Croatia', scoreA: 4, scoreB: 2 },
+    { teamA: 'Ghana', teamB: 'Panama', scoreA: 1, scoreB: 0 },
   ],
 }
 
@@ -618,6 +652,8 @@ export default function Home() {
   const [teamGroupExpanded, setTeamGroupExpanded] = useState(true)
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
+  const [resultsSource, setResultsSource] = useState<string>('')
+  const [liveResultsLoaded, setLiveResultsLoaded] = useState(false)
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1595,12 +1631,37 @@ export default function Home() {
     </div>
   )
 
+  // ─── Fetch live results on mount ─────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/results')
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled || !data?.success || !data?.results) return
+        actualGroupResults = data.results
+        setResultsSource(data.source || 'live')
+        setLiveResultsLoaded(true)
+        setResults(null)
+        setTeamViewResults(null)
+        setVenueViewResults(null)
+        hasAutoRunTeam.current = false
+        hasAutoRunVenue.current = false
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResultsSource('hardcoded')
+          setLiveResultsLoaded(true)
+        }
+      })
+    return () => { cancelled = true }
+  }, [])
+
   // ─── Auto-run simulations ────────────────────────────────────
   useEffect(() => {
     if (viewMode === 'match' && !results && !calculating && canSimulate) {
       runSimulation()
     }
-  }, [viewMode, selectedMatch, results])
+  }, [viewMode, selectedMatch, results, liveResultsLoaded])
 
   useEffect(() => {
     if (viewMode === 'team' && !hasAutoRunTeam.current && !calculating) {
@@ -1982,6 +2043,7 @@ export default function Home() {
             where &mu; = ln(1.26) and &beta; = 0.00149 (calibrated to FIFA Elo formula).{' '}
             Dixon-Coles &tau; correction (&rho; = &minus;0.05). 10,000 MC iterations.
             {ratingSource && <> | Ratings: {ratingSource}</>}
+            {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
           </div>
         </div>
       )}
@@ -2023,6 +2085,7 @@ export default function Home() {
             <strong>Model:</strong> Full bracket simulation &mdash; group stages simulated for all feeder matches,
             then knockout results chained through R32 &rarr; {results.round}. Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
             {ratingSource && <> | Ratings: {ratingSource}</>}
+            {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
           </div>
         </div>
       )}
@@ -2281,6 +2344,7 @@ export default function Home() {
                 <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
                 with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
                 {ratingSource && <> | Ratings: {ratingSource}</>}
+            {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
               </div>
 
               <div style={{ marginTop: '15px', textAlign: 'center' }}>
@@ -2492,6 +2556,7 @@ export default function Home() {
                 <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
                 with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
                 {ratingSource && <> | Ratings: {ratingSource}</>}
+            {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
               </div>
               <div style={{ marginTop: '15px', textAlign: 'center' }}>
                 <span
