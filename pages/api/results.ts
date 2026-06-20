@@ -157,9 +157,27 @@ const FALLBACK_RESULTS: Record<string, MatchResult[]> = {
   ],
 }
 
+function mergeResults(base: Record<string, MatchResult[]>, overlay: Record<string, MatchResult[]>): Record<string, MatchResult[]> {
+  const merged: Record<string, MatchResult[]> = {}
+  for (const [group, matches] of Object.entries(base)) {
+    merged[group] = [...matches]
+  }
+  for (const [group, matches] of Object.entries(overlay)) {
+    if (!merged[group]) merged[group] = []
+    for (const m of matches) {
+      const idx = merged[group].findIndex(r =>
+        (r.teamA === m.teamA && r.teamB === m.teamB) || (r.teamA === m.teamB && r.teamB === m.teamA)
+      )
+      if (idx >= 0) merged[group][idx] = m
+      else merged[group].push(m)
+    }
+  }
+  return merged
+}
+
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const liveResults = await fetchESPNResults()
-  const results = liveResults || FALLBACK_RESULTS
+  const results = liveResults ? mergeResults(FALLBACK_RESULTS, liveResults) : FALLBACK_RESULTS
   const source = liveResults ? 'espn-live' : 'fallback'
 
   res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=60')

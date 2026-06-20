@@ -1638,7 +1638,17 @@ export default function Home() {
       .then(r => r.json())
       .then(data => {
         if (cancelled || !data?.success || !data?.results) return
-        actualGroupResults = data.results
+        const incoming = data.results as Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]>
+        for (const [group, matches] of Object.entries(incoming)) {
+          if (!actualGroupResults[group]) actualGroupResults[group] = []
+          for (const m of matches) {
+            const idx = actualGroupResults[group].findIndex(r =>
+              (r.teamA === m.teamA && r.teamB === m.teamB) || (r.teamA === m.teamB && r.teamB === m.teamA)
+            )
+            if (idx >= 0) actualGroupResults[group][idx] = m
+            else actualGroupResults[group].push(m)
+          }
+        }
         setResultsSource(data.source || 'live')
         setLiveResultsLoaded(true)
         setResults(null)
