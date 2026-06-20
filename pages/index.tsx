@@ -641,15 +641,14 @@ export default function Home() {
   const [showDetail, setShowDetail] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
-  const [viewMode, setViewMode] = useState<'match' | 'team' | 'venue'>('match')
+  const [viewMode, setViewMode] = useState<'match' | 'team' | 'bracket' | 'venue'>('team')
   const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [venueViewResults, setVenueViewResults] = useState<any>(null)
   const [selectedVenue, setSelectedVenue] = useState<string>('Dallas/Arlington, TX')
-  const [selectedTeam, setSelectedTeam] = useState<string>('')
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
   const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
-  const [teamGroupExpanded, setTeamGroupExpanded] = useState(true)
+  const [expandedBracketMatch, setExpandedBracketMatch] = useState<number | null>(null)
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
   const [resultsSource, setResultsSource] = useState<string>('')
@@ -1638,7 +1637,17 @@ export default function Home() {
       .then(r => r.json())
       .then(data => {
         if (cancelled || !data?.success || !data?.results) return
-        actualGroupResults = data.results
+        const incoming = data.results as Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]>
+        for (const [group, matches] of Object.entries(incoming)) {
+          if (!actualGroupResults[group]) actualGroupResults[group] = []
+          for (const m of matches) {
+            const idx = actualGroupResults[group].findIndex(r =>
+              (r.teamA === m.teamA && r.teamB === m.teamB) || (r.teamA === m.teamB && r.teamB === m.teamA)
+            )
+            if (idx >= 0) actualGroupResults[group][idx] = m
+            else actualGroupResults[group].push(m)
+          }
+        }
         setResultsSource(data.source || 'live')
         setLiveResultsLoaded(true)
         setResults(null)
@@ -1664,7 +1673,7 @@ export default function Home() {
   }, [viewMode, selectedMatch, results, liveResultsLoaded])
 
   useEffect(() => {
-    if (viewMode === 'team' && !hasAutoRunTeam.current && !calculating) {
+    if ((viewMode === 'team' || viewMode === 'bracket') && !hasAutoRunTeam.current && !calculating) {
       hasAutoRunTeam.current = true
       runTeamSimulation()
     }
@@ -1698,40 +1707,28 @@ export default function Home() {
       </p>
 
       {/* ── View mode tabs ── */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '20px' }}>
-        <button
-          onClick={() => setViewMode('match')}
-          style={{
-            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-            background: viewMode === 'match' ? '#003366' : 'white',
-            color: viewMode === 'match' ? 'white' : '#003366',
-            border: '2px solid #003366', borderRadius: '6px 0 0 6px',
-          }}
-        >
-          Round View
-        </button>
-        <button
-          onClick={() => setViewMode('team')}
-          style={{
-            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-            background: viewMode === 'team' ? '#003366' : 'white',
-            color: viewMode === 'team' ? 'white' : '#003366',
-            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0',
-          }}
-        >
-          Team View
-        </button>
-        <button
-          onClick={() => setViewMode('venue')}
-          style={{
-            padding: '10px 24px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-            background: viewMode === 'venue' ? '#003366' : 'white',
-            color: viewMode === 'venue' ? 'white' : '#003366',
-            border: '2px solid #003366', borderLeft: 'none', borderRadius: '0 6px 6px 0',
-          }}
-        >
-          Venue View
-        </button>
+      <div style={{ display: 'flex', gap: '0', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {([
+          { key: 'team' as const, label: 'Teams' },
+          { key: 'bracket' as const, label: 'Bracket' },
+          { key: 'match' as const, label: 'Rounds' },
+          { key: 'venue' as const, label: 'Venues' },
+        ]).map((tab, i, arr) => (
+          <button
+            key={tab.key}
+            onClick={() => setViewMode(tab.key)}
+            style={{
+              padding: '10px 20px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
+              background: viewMode === tab.key ? '#003366' : 'white',
+              color: viewMode === tab.key ? 'white' : '#003366',
+              border: '2px solid #003366',
+              borderLeft: i > 0 ? 'none' : '2px solid #003366',
+              borderRadius: i === 0 ? '6px 0 0 6px' : i === arr.length - 1 ? '0 6px 6px 0' : '0',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* ═══════════════════ ROUND VIEW ═══════════════════ */}
@@ -2109,104 +2106,6 @@ export default function Home() {
       {/* ═══════════════════ TEAM VIEW ═══════════════════ */}
       {viewMode === 'team' && (
         <div>
-          {/* Team selector */}
-          <div style={{ marginBottom: '20px' }}>
-            <select
-              value={selectedTeam}
-              onChange={e => setSelectedTeam(e.target.value)}
-              style={{
-                padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
-                border: '2px solid #14967f', background: 'white', color: '#0d7c66',
-                fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
-              }}
-            >
-              <option value="">Select a team to view schedule...</option>
-              {Object.entries(groupTeams)
-                .flatMap(([g, teams]) => teams.map(t => ({ ...t, group: g })))
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map(t => (
-                  <option key={t.name} value={t.name}>
-                    {t.name} (Group {t.group})
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Group stage schedule for selected team */}
-          {selectedTeam && (() => {
-            const teamGames = getTeamGroupMatches(selectedTeam)
-            const group = getTeamGroup(selectedTeam)
-            const groupRivals = groupTeams[group]?.filter(t => t.name !== selectedTeam) || []
-            return (
-              <div style={{ marginBottom: '20px' }}>
-                <button
-                  onClick={() => setTeamGroupExpanded(!teamGroupExpanded)}
-                  style={{
-                    width: '100%', padding: '12px 16px', background: '#14967f', color: 'white',
-                    border: 'none', borderRadius: teamGroupExpanded ? '8px 8px 0 0' : '8px',
-                    cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}
-                >
-                  <span>Group {group} Schedule — {selectedTeam}{formatRecord(selectedTeam) ? ` (${formatRecord(selectedTeam)})` : ''}</span>
-                  <span style={{ fontSize: '14px' }}>{teamGroupExpanded ? '▼' : '▶'}</span>
-                </button>
-                {teamGroupExpanded && (
-                  <div style={{ background: '#f0faf7', borderRadius: '0 0 8px 8px', padding: '12px' }}>
-                    <div style={{ fontSize: '13px', color: '#555', marginBottom: '10px' }}>
-                      Group {group}: {groupTeams[group]?.map(t => {
-                        const rec = formatRecord(t.name)
-                        return rec ? `${t.name} (${rec})` : t.name
-                      }).join(', ')}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {teamGames.map(gm => {
-                        const result = groupMatchResult(gm)
-                        const opponent = gm.teamA === selectedTeam ? gm.teamB : gm.teamA
-                        const isHome = gm.teamA === selectedTeam
-                        return (
-                          <div key={gm.matchNum} style={{
-                            background: 'white', borderRadius: '8px', border: '1px solid #c8e6d8',
-                            padding: '12px 16px',
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <span style={{ fontWeight: 'bold', fontSize: '15px' }}>
-                                  vs {opponent}
-                                </span>
-                                {result && (() => {
-                                  const myGoals = isHome ? result.scoreA : result.scoreB
-                                  const theirGoals = isHome ? result.scoreB : result.scoreA
-                                  const outcome = myGoals > theirGoals ? 'W' : myGoals === theirGoals ? 'D' : 'L'
-                                  const bg = outcome === 'W' ? '#28a745' : outcome === 'D' ? '#ffc107' : '#dc3545'
-                                  const fg = outcome === 'D' ? '#333' : 'white'
-                                  return (
-                                    <span style={{
-                                      marginLeft: '10px', background: bg, color: fg,
-                                      padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold',
-                                    }}>
-                                      {outcome} {myGoals}–{theirGoals}
-                                    </span>
-                                  )
-                                })()}
-                              </div>
-                              <span style={{ fontSize: '12px', color: '#0d7c66', fontWeight: 'bold' }}>
-                                M{gm.matchNum}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                              {gm.date} &bull; {venueCity(gm.venue)}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
           {/* Loading indicator (auto-runs on tab switch) */}
           {calculating && !teamViewResults && (
             <div style={{ padding: '20px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
@@ -2362,6 +2261,208 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* ═══════════════════ BRACKET VIEW ═══════════════════ */}
+      {viewMode === 'bracket' && (() => {
+        const bracketData = results || venueViewResults
+        const getSlotLabel = (m: KnockoutMatch, side: 'A' | 'B'): string => {
+          if (m.round === 'R32') {
+            if (m.type === 'runner') {
+              return side === 'A' ? `2nd Group ${m.groups![0]}` : `2nd Group ${m.groups![1]}`
+            } else if (m.type === 'winner_vs_runner') {
+              return side === 'A' ? `1st Group ${m.groups![0]}` : `2nd Group ${m.groups![1]}`
+            } else {
+              if (side === 'A') return `1st Group ${m.groups![0]}`
+              return `3rd (${m.thirdPlacePools!.join('/')})`
+            }
+          }
+          const src = m.feedsFrom!
+          return side === 'A' ? `Winner M${src[0]}` : `Winner M${src[1]}`
+        }
+
+        const halfA = [
+          { r32: [73, 75], r16: 90 },
+          { r32: [74, 77], r16: 89 },
+          { r32: [83, 84], r16: 93 },
+          { r32: [81, 82], r16: 94 },
+        ]
+        const halfB = [
+          { r32: [76, 78], r16: 91 },
+          { r32: [79, 80], r16: 92 },
+          { r32: [86, 88], r16: 95 },
+          { r32: [85, 87], r16: 96 },
+        ]
+
+        const getMatch = (n: number) => allMatches.find(m => m.matchNum === n)!
+
+        const teamSimResults = teamViewResults as any[] | null
+
+        const getTopTeam = (matchNum: number, side: 'A' | 'B'): { name: string; pct: number } | null => {
+          if (!teamSimResults) return null
+          const match = getMatch(matchNum)
+          if (match.round !== 'R32') return null
+          const label = getSlotLabel(match, side)
+          const groupMatch = label.match(/^(1st|2nd) Group ([A-L])$/)
+          if (!groupMatch) return null
+          const pos = groupMatch[1] === '1st' ? 0 : 1
+          const grp = groupMatch[2]
+          const teamInSlot = teamSimResults.find(t => t.group === grp)
+          if (!teamInSlot) return null
+          const groupTeamsList = teamSimResults.filter(t => t.group === grp)
+            .sort((a: any, b: any) => {
+              const aR32 = a.R32?.total || 0
+              const bR32 = b.R32?.total || 0
+              return bR32 - aR32
+            })
+          if (pos === 0 && groupTeamsList[0]) {
+            const top = groupTeamsList[0]
+            const rec = formatRecord(top.name)
+            return { name: rec ? `${top.name} (${rec})` : top.name, pct: top.R32?.total || 0 }
+          }
+          if (pos === 1 && groupTeamsList[1]) {
+            const top = groupTeamsList[1]
+            const rec = formatRecord(top.name)
+            return { name: rec ? `${top.name} (${rec})` : top.name, pct: top.R32?.total || 0 }
+          }
+          return null
+        }
+
+        // expandedBracketMatch state is declared at component level
+
+        const renderSlot = (matchNum: number, side: 'A' | 'B') => {
+          const match = getMatch(matchNum)
+          const label = getSlotLabel(match, side)
+          const topTeam = match.round === 'R32' ? getTopTeam(matchNum, side) : null
+          const isKnown = topTeam && topTeam.pct >= 95
+          return (
+            <div style={{
+              padding: '6px 10px', fontSize: '13px',
+              background: isKnown ? '#e8f5e9' : '#f5f5f5',
+              borderBottom: side === 'A' ? '1px solid #e0e0e0' : 'none',
+              fontWeight: isKnown ? 'bold' : 'normal',
+              color: isKnown ? '#1b5e20' : '#555',
+            }}>
+              {isKnown ? topTeam!.name : (
+                <span>
+                  <span style={{ color: '#888', fontSize: '11px' }}>{label}</span>
+                  {topTeam && <span style={{ color: '#0d7c66', fontSize: '11px', marginLeft: '6px' }}>({topTeam.name})</span>}
+                </span>
+              )}
+            </div>
+          )
+        }
+
+        const renderMatchCard = (matchNum: number, showConnector?: boolean) => {
+          const match = getMatch(matchNum)
+          const rc = roundColor[match.round] || '#003366'
+          return (
+            <div key={matchNum} style={{ marginBottom: '8px' }}>
+              <div
+                onClick={() => {
+                  if (match.round === 'R32') {
+                    setSelectedMatch(matchNum)
+                    setResults(null)
+                    setViewMode('match')
+                    setSelectedRound('R32')
+                  } else {
+                    setExpandedBracketMatch(expandedBracketMatch === matchNum ? null : matchNum)
+                  }
+                }}
+                style={{
+                  border: `2px solid ${rc}`, borderRadius: '8px', overflow: 'hidden',
+                  cursor: 'pointer', background: 'white',
+                }}
+              >
+                <div style={{
+                  background: rc, color: 'white', padding: '4px 10px',
+                  fontSize: '11px', fontWeight: 'bold',
+                  display: 'flex', justifyContent: 'space-between',
+                }}>
+                  <span>M{matchNum}</span>
+                  <span>{match.date.split('•')[0]?.trim()}</span>
+                </div>
+                {renderSlot(matchNum, 'A')}
+                {renderSlot(matchNum, 'B')}
+                <div style={{ fontSize: '10px', color: '#999', padding: '3px 10px', background: '#fafafa' }}>
+                  {venueCity(match.venue)}
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        const renderHalf = (half: typeof halfA, qfMatch: number, label: string) => {
+          const qf = getMatch(qfMatch)
+          return (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#003366', marginBottom: '10px' }}>{label}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                {half.map((pair, pi) => (
+                  <div key={pi}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '4px' }}>
+                      {pair.r32.map(mn => renderMatchCard(mn))}
+                    </div>
+                    <div style={{ borderLeft: '3px solid #ccc', marginLeft: '20px', paddingLeft: '8px' }}>
+                      {renderMatchCard(pair.r16)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ borderLeft: '3px solid #aaa', marginLeft: '40px', paddingLeft: '8px', marginTop: '4px' }}>
+                {renderMatchCard(qfMatch)}
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div>
+            {!teamViewResults && !calculating && (
+              <div style={{ padding: '15px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+                Loading bracket data…
+              </div>
+            )}
+            {calculating && !teamViewResults && (
+              <div style={{ padding: '15px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
+                Running simulation…
+              </div>
+            )}
+
+            {/* Upper bracket → SF M101 */}
+            {renderHalf(halfA.slice(0, 2), 97, 'Upper Bracket')}
+            {renderHalf(halfA.slice(2), 98, '')}
+            <div style={{ borderLeft: '3px solid #666', marginLeft: '60px', paddingLeft: '8px' }}>
+              {renderMatchCard(101)}
+            </div>
+
+            <div style={{ margin: '20px 0', borderTop: '2px solid #003366', paddingTop: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#c0392b', marginBottom: '8px', textAlign: 'center' }}>Final</div>
+                  {renderMatchCard(104)}
+                </div>
+                <div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#6c757d', marginBottom: '8px', textAlign: 'center' }}>3rd Place</div>
+                  {renderMatchCard(103)}
+                </div>
+              </div>
+            </div>
+
+            {/* Lower bracket → SF M102 */}
+            {renderHalf(halfB.slice(0, 2), 99, 'Lower Bracket')}
+            {renderHalf(halfB.slice(2), 100, '')}
+            <div style={{ borderLeft: '3px solid #666', marginLeft: '60px', paddingLeft: '8px' }}>
+              {renderMatchCard(102)}
+            </div>
+
+            <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
+              Tap any R32 match to view detailed probabilities. Green = team likely clinched ({'>'}95%).
+              {ratingSource && <> | Ratings: {ratingSource}</>}
+              {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ═══════════════════ VENUE VIEW ═══════════════════ */}
       {viewMode === 'venue' && (
