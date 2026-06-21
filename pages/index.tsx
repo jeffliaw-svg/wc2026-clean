@@ -2352,8 +2352,9 @@ export default function Home() {
                                 background: isElim ? '#fff5f5' : i < 2 ? '#e8f5e9' : i === 2 ? '#fff8e1' : 'white',
                                 opacity: isElim ? 0.6 : 1,
                               }}>
-                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px' }}>
+                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap' }}>
                                   <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#aaa', textUnderlineOffset: '2px' }}>{t.name}</span>
+                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal', marginLeft: '4px' }}>({t.w}-{t.d}-{t.l})</span>}
                                 </td>
                                 <td style={td(true)}>{t.pts}</td>
                                 <td style={td()}>{t.played}</td>
