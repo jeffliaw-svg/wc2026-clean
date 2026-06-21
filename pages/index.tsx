@@ -644,6 +644,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'match' | 'team' | 'standings' | 'bracket' | 'venue'>('team')
   const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
+  const navigateToTeam = (name: string) => { setViewMode('team'); setExpandedTeam(name) }
   const [venueViewResults, setVenueViewResults] = useState<any>(null)
   const [selectedVenue, setSelectedVenue] = useState<string>('Dallas/Arlington, TX')
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
@@ -1714,19 +1715,18 @@ export default function Home() {
       </p>
 
       {/* ── View mode tabs ── */}
-      <div style={{ display: 'flex', gap: '0', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0', marginBottom: '20px' }}>
         {([
           { key: 'team' as const, label: 'Teams' },
           { key: 'standings' as const, label: 'Standings' },
           { key: 'bracket' as const, label: 'Bracket' },
-          { key: 'match' as const, label: 'Rounds' },
           { key: 'venue' as const, label: 'Venues' },
         ]).map((tab, i, arr) => (
           <button
             key={tab.key}
             onClick={() => setViewMode(tab.key)}
             style={{
-              padding: '10px 20px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
+              flex: 1, padding: '10px 0', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
               background: viewMode === tab.key ? '#003366' : 'white',
               color: viewMode === tab.key ? 'white' : '#003366',
               border: '2px solid #003366',
@@ -2298,6 +2298,11 @@ export default function Home() {
           padding: '4px 4px', textAlign: 'center', fontSize: '12px',
           ...(bold ? { fontWeight: 'bold' } : {}),
         })
+        const tdPct = (color: string, bold?: boolean): React.CSSProperties => ({
+          padding: '4px 6px 4px 2px', textAlign: 'right', fontSize: '12px',
+          fontVariantNumeric: 'tabular-nums', color,
+          ...(bold ? { fontWeight: 'bold' } : {}),
+        })
         return (
           <div>
             {calculating && !hasSim && (
@@ -2322,16 +2327,18 @@ export default function Home() {
                         <thead>
                           <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
                             <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px' }}>Team</th>
+                            <th style={th('Pts', '26px')}>Pts</th>
                             <th style={th('P')}>P</th>
                             <th style={th('W')}>W</th>
                             <th style={th('D')}>D</th>
                             <th style={th('L')}>L</th>
-                            <th style={th('GD', '28px')}>GD</th>
-                            <th style={th('Pts', '28px')}>Pts</th>
+                            <th style={th('GF')}>GF</th>
+                            <th style={th('GA')}>GA</th>
+                            <th style={th('GD', '26px')}>GD</th>
                             {hasSim && <>
-                              <th style={th('1st', '36px', '#1b5e20')}>1st</th>
-                              <th style={th('2nd', '36px', '#2e7d32')}>2nd</th>
-                              <th style={th('R32', '36px', '#00509e')}>R32</th>
+                              <th style={th('1st', '38px', '#1b5e20')}>1st</th>
+                              <th style={th('2nd', '38px', '#2e7d32')}>2nd</th>
+                              <th style={th('R32', '38px', '#00509e')}>R32</th>
                             </>}
                           </tr>
                         </thead>
@@ -2346,23 +2353,24 @@ export default function Home() {
                                 opacity: isElim ? 0.6 : 1,
                               }}>
                                 <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px' }}>
-                                  {t.name}
-                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal', marginLeft: '4px' }}>{t.gf}:{t.ga}</span>}
+                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#aaa', textUnderlineOffset: '2px' }}>{t.name}</span>
                                 </td>
+                                <td style={td(true)}>{t.pts}</td>
                                 <td style={td()}>{t.played}</td>
                                 <td style={td()}>{t.w}</td>
                                 <td style={td()}>{t.d}</td>
                                 <td style={td()}>{t.l}</td>
+                                <td style={td()}>{t.played > 0 ? t.gf : '–'}</td>
+                                <td style={td()}>{t.played > 0 ? t.ga : '–'}</td>
                                 <td style={td()}>{t.played > 0 ? (gd > 0 ? `+${gd}` : gd) : '–'}</td>
-                                <td style={td(true)}>{t.pts}</td>
                                 {hasSim && <>
-                                  <td style={{ ...td(), color: '#1b5e20', fontWeight: t.pct1st >= 90 ? 'bold' : 'normal' }}>
+                                  <td style={tdPct('#1b5e20', t.pct1st >= 90)}>
                                     {t.pct1st >= 99.5 ? '99+' : t.pct1st < 0.5 ? '<1' : Math.round(t.pct1st)}%
                                   </td>
-                                  <td style={{ ...td(), color: '#2e7d32' }}>
+                                  <td style={tdPct('#2e7d32')}>
                                     {t.pct2nd >= 99.5 ? '99+' : t.pct2nd < 0.5 ? '<1' : Math.round(t.pct2nd)}%
                                   </td>
-                                  <td style={{ ...td(true), color: '#00509e' }}>
+                                  <td style={tdPct('#00509e', true)}>
                                     {t.pctR32 >= 99.5 ? '99+' : t.pctR32 < 0.5 ? '<1' : Math.round(t.pctR32)}%
                                   </td>
                                 </>}
@@ -2375,16 +2383,21 @@ export default function Home() {
                     <div style={{ padding: '6px 8px', background: '#fafafa', borderTop: '1px solid #eee' }}>
                       {groupGames.map(gm => {
                         const result = groupMatchResult(gm)
+                        const tLink = (name: string, bold: boolean) => (
+                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{name}</span>
+                        )
                         return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '1px 0' }}>
                             {result ? (
                               <span style={{ color: '#333' }}>
-                                <span style={{ fontWeight: result.scoreA > result.scoreB ? 'bold' : 'normal' }}>{gm.teamA}</span>
+                                {tLink(gm.teamA, result.scoreA > result.scoreB)}
                                 {' '}<strong>{result.scoreA}–{result.scoreB}</strong>{' '}
-                                <span style={{ fontWeight: result.scoreB > result.scoreA ? 'bold' : 'normal' }}>{gm.teamB}</span>
+                                {tLink(gm.teamB, result.scoreB > result.scoreA)}
                               </span>
                             ) : (
-                              <span style={{ color: '#aaa' }}>{gm.teamA} vs {gm.teamB} &bull; {gm.date.split('•')[0]?.trim()}</span>
+                              <span style={{ color: '#aaa' }}>
+                                {tLink(gm.teamA, false)} vs {tLink(gm.teamB, false)} &bull; {gm.date.split('•')[0]?.trim()}
+                              </span>
                             )}
                           </div>
                         )
@@ -2396,7 +2409,7 @@ export default function Home() {
             </div>
             <div style={{ fontSize: '11px', color: '#888', marginTop: '12px' }}>
               Green = top 2 (auto-qualify). Yellow = 3rd (8 of 12 advance). Red tint = eliminated.
-              {' '}GF:GA shown next to team name. 1st/2nd/R32 columns from 10,000 MC simulations.
+              {' '}1st/2nd/R32 columns from 10,000 MC simulations.
               {ratingSource && <> | Ratings: {ratingSource}</>}
               {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
             </div>
@@ -2437,7 +2450,7 @@ export default function Home() {
 
         const SLOT_W = 120
         const CONN_W = 24
-        const SLOT_H = 52
+        const SLOT_H = 66
 
         const upperRounds = [
           [74, 77, 73, 75, 83, 84, 81, 82],
@@ -2457,6 +2470,7 @@ export default function Home() {
           const rc = roundColor[m.round] || '#003366'
           let topText: string, botText: string
           let topGreen = false, botGreen = false
+          let topRawName: string | null = null, botRawName: string | null = null
 
           if (m.round === 'R32') {
             const topTeam = getTopTeamForSlot(matchNum, 'A')
@@ -2465,50 +2479,48 @@ export default function Home() {
             botGreen = botTeam != null && botTeam.pct >= 90
             topText = topGreen ? topTeam!.name : (topTeam ? topTeam.name : getSlotLabel(m, 'A'))
             botText = botGreen ? botTeam!.name : (botTeam ? botTeam.name : getSlotLabel(m, 'B'))
+            if (topTeam) topRawName = topTeam.name.replace(/\s*\(.*\)$/, '')
+            if (botTeam) botRawName = botTeam.name.replace(/\s*\(.*\)$/, '')
           } else {
             topText = getSlotLabel(m, 'A')
             botText = getSlotLabel(m, 'B')
           }
 
-          return (
+          const teamCell = (text: string, green: boolean, rawName: string | null) => (
             <div
-              onClick={() => {
-                if (m.round === 'R32') {
-                  setSelectedMatch(matchNum); setResults(null); setViewMode('match'); setSelectedRound('R32')
-                }
-              }}
+              onClick={rawName ? (e: any) => { e.stopPropagation(); navigateToTeam(rawName) } : undefined}
               style={{
-                cursor: m.round === 'R32' ? 'pointer' : 'default',
-                border: '1px solid #ccc', borderRadius: '3px', overflow: 'hidden',
-                width: SLOT_W, background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                padding: '2px 5px', fontSize: '10px',
+                background: green ? '#e8f5e9' : '#fff',
+                fontWeight: green ? 'bold' : 'normal',
+                color: green ? '#1b5e20' : '#333',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                lineHeight: '15px',
+                cursor: rawName ? 'pointer' : 'default',
+                textDecoration: rawName ? 'underline' : 'none',
+                textDecorationColor: '#ccc',
+                textUnderlineOffset: '2px',
               }}
             >
+              {text}
+            </div>
+          )
+
+          return (
+            <div style={{
+              border: '1px solid #ccc', borderRadius: '3px', overflow: 'hidden',
+              width: SLOT_W, background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+            }}>
               <div style={{
                 padding: '1px 4px', fontSize: '8px', fontWeight: 'bold',
                 background: rc, color: 'white', lineHeight: '13px',
               }}>
                 M{matchNum}
               </div>
-              <div style={{
-                padding: '2px 5px', fontSize: '10px', borderBottom: '1px solid #eee',
-                background: topGreen ? '#e8f5e9' : '#fff',
-                fontWeight: topGreen ? 'bold' : 'normal',
-                color: topGreen ? '#1b5e20' : '#333',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                lineHeight: '15px',
-              }}>
-                {topText}
+              <div style={{ borderBottom: '1px solid #eee' }}>
+                {teamCell(topText, topGreen, topRawName)}
               </div>
-              <div style={{
-                padding: '2px 5px', fontSize: '10px',
-                background: botGreen ? '#e8f5e9' : '#fff',
-                fontWeight: botGreen ? 'bold' : 'normal',
-                color: botGreen ? '#1b5e20' : '#333',
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                lineHeight: '15px',
-              }}>
-                {botText}
-              </div>
+              {teamCell(botText, botGreen, botRawName)}
             </div>
           )
         }
@@ -2676,13 +2688,13 @@ export default function Home() {
                           </div>
                           <div style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold' }}>
-                              <span>{gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
                               {result ? (
                                 <span style={{ color: '#0d7c66', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
                               ) : (
                                 <span style={{ color: '#999', fontSize: '14px' }}>vs</span>
                               )}
-                              <span>{gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
                             </div>
                             <div style={{ textAlign: 'center', fontSize: '12px', color: '#888', marginTop: '6px' }}>
                               {gm.date}
