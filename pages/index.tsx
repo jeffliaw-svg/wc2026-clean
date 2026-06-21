@@ -2366,13 +2366,13 @@ export default function Home() {
                                 <td style={td()}>{t.played > 0 ? (gd > 0 ? `+${gd}` : gd) : '–'}</td>
                                 {hasSim && <>
                                   <td style={tdPct('#1b5e20', t.pct1st >= 90)}>
-                                    {t.pct1st < 0.5 && t.pct1st > 0 ? '<1' : Math.round(t.pct1st)}%
+                                    {t.pct1st < 0.5 && t.pct1st > 0 ? '<1%' : `${t.pct1st.toFixed(1)}%`}
                                   </td>
                                   <td style={tdPct('#2e7d32')}>
-                                    {t.pct2nd < 0.5 && t.pct2nd > 0 ? '<1' : Math.round(t.pct2nd)}%
+                                    {t.pct2nd < 0.5 && t.pct2nd > 0 ? '<1%' : `${t.pct2nd.toFixed(1)}%`}
                                   </td>
                                   <td style={tdPct('#00509e', true)}>
-                                    {t.pctR32 < 0.5 && t.pctR32 > 0 ? '<1' : Math.round(t.pctR32)}%
+                                    {t.pctR32 < 0.5 && t.pctR32 > 0 ? '<1%' : `${t.pctR32.toFixed(1)}%`}
                                   </td>
                                 </>}
                               </tr>
