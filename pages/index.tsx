@@ -641,7 +641,7 @@ export default function Home() {
   const [showDetail, setShowDetail] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
-  const [viewMode, setViewMode] = useState<'match' | 'team' | 'bracket' | 'venue'>('team')
+  const [viewMode, setViewMode] = useState<'match' | 'team' | 'standings' | 'bracket' | 'venue'>('team')
   const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
   const [venueViewResults, setVenueViewResults] = useState<any>(null)
@@ -1189,15 +1189,16 @@ export default function Home() {
       const iterations = 10000
       const groups = Object.keys(groupTeams)
 
-      // Per-team tracker: round → venue city → count
+      // Per-team tracker: round → venue city → count, plus group position counts
       const tracker: Record<string, {
         R32: Record<string, number>; R16: Record<string, number>
         QF: Record<string, number>; SF: Record<string, number>
         Final: Record<string, number>; Champion: number
+        grpPos: [number, number, number, number]
       }> = {}
       for (const g of groups) {
         for (const t of groupTeams[g]) {
-          tracker[t.name] = { R32: {}, R16: {}, QF: {}, SF: {}, Final: {}, Champion: 0 }
+          tracker[t.name] = { R32: {}, R16: {}, QF: {}, SF: {}, Final: {}, Champion: 0, grpPos: [0, 0, 0, 0] }
         }
       }
 
@@ -1211,7 +1212,12 @@ export default function Home() {
       for (let iter = 0; iter < iterations; iter++) {
         // 1. Simulate all 12 group stages (with points for 3rd-place ranking)
         const gs: Record<string, { name: string; rating: number; points: number; gd: number; gf: number }[]> = {}
-        for (const g of groups) gs[g] = simulateGroupFull(resolveGroup(g), g)
+        for (const g of groups) {
+          gs[g] = simulateGroupFull(resolveGroup(g), g)
+          for (let pos = 0; pos < gs[g].length; pos++) {
+            tracker[gs[g][pos].name].grpPos[pos]++
+          }
+        }
 
         // 2. Rank 3rd-place teams, top 8 qualify
         const thirds = groups.map(g => ({ group: g, ...gs[g][2] }))
@@ -1322,6 +1328,7 @@ export default function Home() {
           QF: roundData(stats.QF), SF: roundData(stats.SF),
           Final: roundData(stats.Final),
           Champion: (stats.Champion / iterations) * 100,
+          grpPos: stats.grpPos.map(c => (c / iterations) * 100) as [number, number, number, number],
         }
       }).sort((a, b) => b.rating - a.rating)
 
@@ -1710,6 +1717,7 @@ export default function Home() {
       <div style={{ display: 'flex', gap: '0', marginBottom: '20px', flexWrap: 'wrap' }}>
         {([
           { key: 'team' as const, label: 'Teams' },
+          { key: 'standings' as const, label: 'Standings' },
           { key: 'bracket' as const, label: 'Bracket' },
           { key: 'match' as const, label: 'Rounds' },
           { key: 'venue' as const, label: 'Venues' },
@@ -2262,154 +2270,228 @@ export default function Home() {
         </div>
       )}
 
+      {/* ═══════════════════ STANDINGS VIEW ═══════════════════ */}
+      {viewMode === 'standings' && (() => {
+        const teamSim = teamViewResults as any[] | null
+        const computeStandings = (group: string) => {
+          const teams = groupTeams[group]
+          return teams.map(t => {
+            const r = getTeamRecord(t.name)
+            const pts = r.w * 3 + r.d
+            const played = r.w + r.d + r.l
+            const sim = teamSim?.find((s: any) => s.name === t.name)
+            return {
+              ...t, ...r, pts, played,
+              pct1st: sim?.grpPos?.[0] ?? null,
+              pct2nd: sim?.grpPos?.[1] ?? null,
+              pctR32: sim?.R32?.total ?? null,
+            }
+          }).sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : (b.gf - b.ga) !== (a.gf - a.ga) ? (b.gf - b.ga) - (a.gf - a.ga) : b.gf - a.gf)
+        }
+        const groups = Object.keys(groupTeams).sort()
+        const hasSim = teamSim != null
+        const th = (label: string, w?: string, bg?: string): React.CSSProperties => ({
+          padding: '5px 4px', textAlign: 'center', width: w || '24px', fontSize: '10px',
+          ...(bg ? { background: bg, color: 'white' } : {}),
+        })
+        const td = (bold?: boolean): React.CSSProperties => ({
+          padding: '4px 4px', textAlign: 'center', fontSize: '12px',
+          ...(bold ? { fontWeight: 'bold' } : {}),
+        })
+        return (
+          <div>
+            {calculating && !hasSim && (
+              <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>Running simulation…</div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+              {groups.map(g => {
+                const standings = computeStandings(g)
+                const groupGames = groupMatches.filter(m => m.group === g)
+                const played = groupGames.filter(gm => groupMatchResult(gm) !== null).length
+                return (
+                  <div key={g} style={{ background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+                    <div style={{
+                      background: '#003366', color: 'white', padding: '8px 12px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Group {g}</span>
+                      <span style={{ fontSize: '11px', opacity: 0.7 }}>{played}/6 played</span>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '360px' }}>
+                        <thead>
+                          <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
+                            <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px' }}>Team</th>
+                            <th style={th('P')}>P</th>
+                            <th style={th('W')}>W</th>
+                            <th style={th('D')}>D</th>
+                            <th style={th('L')}>L</th>
+                            <th style={th('GD', '28px')}>GD</th>
+                            <th style={th('Pts', '28px')}>Pts</th>
+                            {hasSim && <>
+                              <th style={th('1st', '36px', '#1b5e20')}>1st</th>
+                              <th style={th('2nd', '36px', '#2e7d32')}>2nd</th>
+                              <th style={th('R32', '36px', '#00509e')}>R32</th>
+                            </>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.map((t, i) => {
+                            const gd = t.gf - t.ga
+                            const isElim = hasSim && t.pctR32 !== null && t.pctR32 < 1
+                            return (
+                              <tr key={t.name} style={{
+                                borderBottom: '1px solid #eee',
+                                background: isElim ? '#fff5f5' : i < 2 ? '#e8f5e9' : i === 2 ? '#fff8e1' : 'white',
+                                opacity: isElim ? 0.6 : 1,
+                              }}>
+                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px' }}>
+                                  {t.name}
+                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal', marginLeft: '4px' }}>{t.gf}:{t.ga}</span>}
+                                </td>
+                                <td style={td()}>{t.played}</td>
+                                <td style={td()}>{t.w}</td>
+                                <td style={td()}>{t.d}</td>
+                                <td style={td()}>{t.l}</td>
+                                <td style={td()}>{t.played > 0 ? (gd > 0 ? `+${gd}` : gd) : '–'}</td>
+                                <td style={td(true)}>{t.pts}</td>
+                                {hasSim && <>
+                                  <td style={{ ...td(), color: '#1b5e20', fontWeight: t.pct1st >= 90 ? 'bold' : 'normal' }}>
+                                    {t.pct1st >= 99.5 ? '99+' : t.pct1st < 0.5 ? '<1' : Math.round(t.pct1st)}%
+                                  </td>
+                                  <td style={{ ...td(), color: '#2e7d32' }}>
+                                    {t.pct2nd >= 99.5 ? '99+' : t.pct2nd < 0.5 ? '<1' : Math.round(t.pct2nd)}%
+                                  </td>
+                                  <td style={{ ...td(true), color: '#00509e' }}>
+                                    {t.pctR32 >= 99.5 ? '99+' : t.pctR32 < 0.5 ? '<1' : Math.round(t.pctR32)}%
+                                  </td>
+                                </>}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ padding: '6px 8px', background: '#fafafa', borderTop: '1px solid #eee' }}>
+                      {groupGames.map(gm => {
+                        const result = groupMatchResult(gm)
+                        return (
+                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '1px 0' }}>
+                            {result ? (
+                              <span style={{ color: '#333' }}>
+                                <span style={{ fontWeight: result.scoreA > result.scoreB ? 'bold' : 'normal' }}>{gm.teamA}</span>
+                                {' '}<strong>{result.scoreA}–{result.scoreB}</strong>{' '}
+                                <span style={{ fontWeight: result.scoreB > result.scoreA ? 'bold' : 'normal' }}>{gm.teamB}</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#aaa' }}>{gm.teamA} vs {gm.teamB} &bull; {gm.date.split('•')[0]?.trim()}</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '12px' }}>
+              Green = top 2 (auto-qualify). Yellow = 3rd (8 of 12 advance). Red tint = eliminated.
+              {' '}GF:GA shown next to team name. 1st/2nd/R32 columns from 10,000 MC simulations.
+              {ratingSource && <> | Ratings: {ratingSource}</>}
+              {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ═══════════════════ BRACKET VIEW ═══════════════════ */}
       {viewMode === 'bracket' && (() => {
-        const bracketData = results || venueViewResults
+        const getMatch = (n: number) => allMatches.find(m => m.matchNum === n)!
+        const teamSim = teamViewResults as any[] | null
+
         const getSlotLabel = (m: KnockoutMatch, side: 'A' | 'B'): string => {
           if (m.round === 'R32') {
-            if (m.type === 'runner') {
-              return side === 'A' ? `2nd Group ${m.groups![0]}` : `2nd Group ${m.groups![1]}`
-            } else if (m.type === 'winner_vs_runner') {
-              return side === 'A' ? `1st Group ${m.groups![0]}` : `2nd Group ${m.groups![1]}`
-            } else {
-              if (side === 'A') return `1st Group ${m.groups![0]}`
-              return `3rd (${m.thirdPlacePools!.join('/')})`
-            }
+            if (m.type === 'runner') return side === 'A' ? `2nd ${m.groups![0]}` : `2nd ${m.groups![1]}`
+            if (m.type === 'winner_vs_runner') return side === 'A' ? `1st ${m.groups![0]}` : `2nd ${m.groups![1]}`
+            if (side === 'A') return `1st ${m.groups![0]}`
+            return `3rd`
           }
-          const src = m.feedsFrom!
-          return side === 'A' ? `Winner M${src[0]}` : `Winner M${src[1]}`
+          return `W M${m.feedsFrom![side === 'A' ? 0 : 1]}`
         }
 
-        const halfA = [
-          { r32: [73, 75], r16: 90 },
-          { r32: [74, 77], r16: 89 },
-          { r32: [83, 84], r16: 93 },
-          { r32: [81, 82], r16: 94 },
-        ]
-        const halfB = [
-          { r32: [76, 78], r16: 91 },
-          { r32: [79, 80], r16: 92 },
-          { r32: [86, 88], r16: 95 },
-          { r32: [85, 87], r16: 96 },
-        ]
-
-        const getMatch = (n: number) => allMatches.find(m => m.matchNum === n)!
-
-        const teamSimResults = teamViewResults as any[] | null
-
-        const getTopTeam = (matchNum: number, side: 'A' | 'B'): { name: string; pct: number } | null => {
-          if (!teamSimResults) return null
+        const getTopTeamForSlot = (matchNum: number, side: 'A' | 'B'): { name: string; pct: number } | null => {
+          if (!teamSim) return null
           const match = getMatch(matchNum)
           if (match.round !== 'R32') return null
           const label = getSlotLabel(match, side)
-          const groupMatch = label.match(/^(1st|2nd) Group ([A-L])$/)
-          if (!groupMatch) return null
-          const pos = groupMatch[1] === '1st' ? 0 : 1
-          const grp = groupMatch[2]
-          const teamInSlot = teamSimResults.find(t => t.group === grp)
-          if (!teamInSlot) return null
-          const groupTeamsList = teamSimResults.filter(t => t.group === grp)
-            .sort((a: any, b: any) => {
-              const aR32 = a.R32?.total || 0
-              const bR32 = b.R32?.total || 0
-              return bR32 - aR32
-            })
-          if (pos === 0 && groupTeamsList[0]) {
-            const top = groupTeamsList[0]
-            const rec = formatRecord(top.name)
-            return { name: rec ? `${top.name} (${rec})` : top.name, pct: top.R32?.total || 0 }
-          }
-          if (pos === 1 && groupTeamsList[1]) {
-            const top = groupTeamsList[1]
-            const rec = formatRecord(top.name)
-            return { name: rec ? `${top.name} (${rec})` : top.name, pct: top.R32?.total || 0 }
-          }
-          return null
+          const gm = label.match(/^(1st|2nd) ([A-L])$/)
+          if (!gm) return null
+          const pos = gm[1] === '1st' ? 0 : 1
+          const grpTeams = teamSim.filter(t => t.group === gm[2])
+            .sort((a: any, b: any) => (b.R32?.total || 0) - (a.R32?.total || 0))
+          const team = grpTeams[pos]
+          if (!team) return null
+          const rec = formatRecord(team.name)
+          return { name: rec ? `${team.name} (${rec})` : team.name, pct: team.R32?.total || 0 }
         }
 
-        // expandedBracketMatch state is declared at component level
+        const slotStyle = (isKnown: boolean): React.CSSProperties => ({
+          padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap',
+          minWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis',
+          background: isKnown ? '#e8f5e9' : 'white',
+          fontWeight: isKnown ? 'bold' : 'normal',
+          color: isKnown ? '#1b5e20' : '#333',
+        })
 
-        const renderSlot = (matchNum: number, side: 'A' | 'B') => {
+        const renderR32 = (matchNum: number) => {
           const match = getMatch(matchNum)
-          const label = getSlotLabel(match, side)
-          const topTeam = match.round === 'R32' ? getTopTeam(matchNum, side) : null
-          const isKnown = topTeam && topTeam.pct >= 95
+          const topTeam = getTopTeamForSlot(matchNum, 'A')
+          const botTeam = getTopTeamForSlot(matchNum, 'B')
+          const topKnown = topTeam != null && topTeam.pct >= 90
+          const botKnown = botTeam != null && botTeam.pct >= 90
           return (
-            <div style={{
-              padding: '6px 10px', fontSize: '13px',
-              background: isKnown ? '#e8f5e9' : '#f5f5f5',
-              borderBottom: side === 'A' ? '1px solid #e0e0e0' : 'none',
-              fontWeight: isKnown ? 'bold' : 'normal',
-              color: isKnown ? '#1b5e20' : '#555',
-            }}>
-              {isKnown ? topTeam!.name : (
-                <span>
-                  <span style={{ color: '#888', fontSize: '11px' }}>{label}</span>
-                  {topTeam && <span style={{ color: '#0d7c66', fontSize: '11px', marginLeft: '6px' }}>({topTeam.name})</span>}
-                </span>
-              )}
+            <div
+              onClick={() => { setSelectedMatch(matchNum); setResults(null); setViewMode('match'); setSelectedRound('R32') }}
+              style={{ cursor: 'pointer', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}
+            >
+              <div style={{ ...slotStyle(topKnown), borderBottom: '1px solid #ddd' }}>
+                {topKnown ? topTeam!.name : (topTeam ? topTeam.name : getSlotLabel(match, 'A'))}
+              </div>
+              <div style={slotStyle(botKnown)}>
+                {botKnown ? botTeam!.name : (botTeam ? botTeam.name : getSlotLabel(match, 'B'))}
+              </div>
             </div>
           )
         }
 
-        const renderMatchCard = (matchNum: number, showConnector?: boolean) => {
+        const renderBracket = (matchNum: number): JSX.Element => {
           const match = getMatch(matchNum)
+          if (match.round === 'R32') return renderR32(matchNum)
+
+          const [topChild, botChild] = match.feedsFrom!
           const rc = roundColor[match.round] || '#003366'
           return (
-            <div key={matchNum} style={{ marginBottom: '8px' }}>
-              <div
-                onClick={() => {
-                  if (match.round === 'R32') {
-                    setSelectedMatch(matchNum)
-                    setResults(null)
-                    setViewMode('match')
-                    setSelectedRound('R32')
-                  } else {
-                    setExpandedBracketMatch(expandedBracketMatch === matchNum ? null : matchNum)
-                  }
-                }}
-                style={{
-                  border: `2px solid ${rc}`, borderRadius: '8px', overflow: 'hidden',
-                  cursor: 'pointer', background: 'white',
-                }}
-              >
+            <div style={{ display: 'flex', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingBottom: '3px' }}>
+                  {renderBracket(topChild)}
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingTop: '3px' }}>
+                  {renderBracket(botChild)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', width: '14px' }}>
+                <div style={{ flex: 1, borderRight: '2px solid #bbb', borderBottom: '2px solid #bbb' }} />
+                <div style={{ flex: 1, borderRight: '2px solid #bbb' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ width: '6px', height: '2px', background: '#bbb' }} />
                 <div style={{
-                  background: rc, color: 'white', padding: '4px 10px',
-                  fontSize: '11px', fontWeight: 'bold',
-                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: '9px', padding: '2px 5px', background: rc, color: 'white',
+                  borderRadius: '3px', whiteSpace: 'nowrap', fontWeight: 'bold',
                 }}>
-                  <span>M{matchNum}</span>
-                  <span>{match.date.split('•')[0]?.trim()}</span>
+                  M{matchNum}
                 </div>
-                {renderSlot(matchNum, 'A')}
-                {renderSlot(matchNum, 'B')}
-                <div style={{ fontSize: '10px', color: '#999', padding: '3px 10px', background: '#fafafa' }}>
-                  {venueCity(match.venue)}
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        const renderHalf = (half: typeof halfA, qfMatch: number, label: string) => {
-          const qf = getMatch(qfMatch)
-          return (
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#003366', marginBottom: '10px' }}>{label}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                {half.map((pair, pi) => (
-                  <div key={pi}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '4px' }}>
-                      {pair.r32.map(mn => renderMatchCard(mn))}
-                    </div>
-                    <div style={{ borderLeft: '3px solid #ccc', marginLeft: '20px', paddingLeft: '8px' }}>
-                      {renderMatchCard(pair.r16)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ borderLeft: '3px solid #aaa', marginLeft: '40px', paddingLeft: '8px', marginTop: '4px' }}>
-                {renderMatchCard(qfMatch)}
               </div>
             </div>
           )
@@ -2417,46 +2499,35 @@ export default function Home() {
 
         return (
           <div>
-            {!teamViewResults && !calculating && (
-              <div style={{ padding: '15px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
-                Loading bracket data…
-              </div>
-            )}
-            {calculating && !teamViewResults && (
-              <div style={{ padding: '15px', textAlign: 'center', color: '#888', fontSize: '14px' }}>
-                Running simulation…
-              </div>
+            {calculating && !teamSim && (
+              <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>Running simulation…</div>
             )}
 
-            {/* Upper bracket → SF M101 */}
-            {renderHalf(halfA.slice(0, 2), 97, 'Upper Bracket')}
-            {renderHalf(halfA.slice(2), 98, '')}
-            <div style={{ borderLeft: '3px solid #666', marginLeft: '60px', paddingLeft: '8px' }}>
-              {renderMatchCard(101)}
-            </div>
-
-            <div style={{ margin: '20px 0', borderTop: '2px solid #003366', paddingTop: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#c0392b', marginBottom: '8px', textAlign: 'center' }}>Final</div>
-                  {renderMatchCard(104)}
-                </div>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#6c757d', marginBottom: '8px', textAlign: 'center' }}>3rd Place</div>
-                  {renderMatchCard(103)}
-                </div>
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#003366', marginBottom: '6px' }}>Upper Bracket &rarr; Semifinal M101</div>
+            <div style={{ overflowX: 'auto', paddingBottom: '12px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', minWidth: 'min-content' }}>
+                {renderBracket(101)}
               </div>
             </div>
 
-            {/* Lower bracket → SF M102 */}
-            {renderHalf(halfB.slice(0, 2), 99, 'Lower Bracket')}
-            {renderHalf(halfB.slice(2), 100, '')}
-            <div style={{ borderLeft: '3px solid #666', marginLeft: '60px', paddingLeft: '8px' }}>
-              {renderMatchCard(102)}
+            <div style={{
+              margin: '12px 0', padding: '12px', borderRadius: '8px',
+              background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.1em' }}>FINAL &mdash; M104</div>
+              <div style={{ fontSize: '12px', opacity: 0.8 }}>{getMatch(104).date} &bull; {venueCity(getMatch(104).venue)}</div>
+              <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>3rd Place: M103 &bull; {getMatch(103).date} &bull; {venueCity(getMatch(103).venue)}</div>
             </div>
 
-            <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
-              Tap any R32 match to view detailed probabilities. Green = team likely clinched ({'>'}95%).
+            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#003366', marginBottom: '6px' }}>Lower Bracket &rarr; Semifinal M102</div>
+            <div style={{ overflowX: 'auto', paddingBottom: '12px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', minWidth: 'min-content' }}>
+                {renderBracket(102)}
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
+              Tap any R32 matchup for detailed probabilities. Green = clinched ({'≥'}90%).
               {ratingSource && <> | Ratings: {ratingSource}</>}
               {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
             </div>
