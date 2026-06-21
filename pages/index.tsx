@@ -650,6 +650,7 @@ export default function Home() {
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
   const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
   const [expandedBracketMatch, setExpandedBracketMatch] = useState<number | null>(null)
+  const [kalshiData, setKalshiData] = useState<Record<string, { team: string; pWin: number; pQualify: number }[]> | null>(null)
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
   const [resultsSource, setResultsSource] = useState<string>('')
@@ -1670,8 +1671,25 @@ export default function Home() {
           setLiveResultsLoaded(true)
         }
       })
+    fetch('/api/kalshi')
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled && data?.success && data?.groups) setKalshiData(data.groups)
+      })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [])
+
+  const kalshiTeamOdds = (teamName: string, group: string): { pWin: number; pQualify: number } | null => {
+    if (!kalshiData?.[group]) return null
+    const normalize = (n: string) => n.toLowerCase().replace(/[^a-z]/g, '')
+    const k = kalshiData[group].find(t => normalize(t.team) === normalize(teamName) ||
+      normalize(t.team).includes(normalize(teamName)) || normalize(teamName).includes(normalize(t.team)))
+    return k ? { pWin: k.pWin, pQualify: k.pQualify } : null
+  }
+
+  const stubhubUrl = (teamA: string, teamB: string) =>
+    `https://www.stubhub.com/secure/search?q=${encodeURIComponent(`FIFA World Cup 2026 ${teamA} ${teamB}`)}`
 
   // ─── Auto-run simulations ────────────────────────────────────
   useEffect(() => {
@@ -2150,6 +2168,7 @@ export default function Home() {
                         }}
                       >
                         <td style={{ padding: '10px', fontWeight: 'bold', position: 'sticky', left: 0, background: i % 2 === 0 ? 'white' : '#f9f9f9', zIndex: 1 }}>
+                          <span style={{ color: expandedTeam === t.name ? '#003366' : '#333', marginRight: '6px', fontSize: '10px', display: 'inline-block', transition: 'transform 0.15s', transform: expandedTeam === t.name ? 'rotate(90deg)' : 'none' }}>&#9654;</span>
                           {t.name}
                           {formatRecord(t.name) && (
                             <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
@@ -2182,9 +2201,12 @@ export default function Home() {
                                     {matches.map(gm => {
                                       const result = groupMatchResult(gm)
                                       const opp = gm.teamA === t.name ? gm.teamB : gm.teamA
+                                      const kOpp = !result ? kalshiTeamOdds(opp, t.group) : null
                                       return (
                                         <div key={gm.matchNum} style={{ background: result ? 'white' : '#f0faf7', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#ddd' : '#c8e6d8'}`, fontSize: '12px' }}>
-                                          <div style={{ fontWeight: 'bold' }}>vs {opp}</div>
+                                          <div style={{ fontWeight: 'bold' }}>
+                                            vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{opp}</span>
+                                          </div>
                                           <div style={{ color: '#888', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
                                           {result ? (() => {
                                             const my = gm.teamA === t.name ? result.scoreA : result.scoreB
@@ -2197,8 +2219,10 @@ export default function Home() {
                                               </div>
                                             )
                                           })() : (
-                                            <div style={{ color: '#0d7c66', marginTop: '2px' }}>
-                                              {gm.date.split('•')[0]?.trim()}
+                                            <div>
+                                              <div style={{ color: '#0d7c66', marginTop: '2px' }}>{gm.date}</div>
+                                              {kOpp && <div style={{ color: '#6c3483', fontSize: '10px', marginTop: '2px' }}>Kalshi: {opp} {Math.round(kOpp.pQualify)}% adv</div>}
+                                              <a href={stubhubUrl(gm.teamA, gm.teamB)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '10px', textDecoration: 'none', marginTop: '2px', display: 'inline-block' }}>Tickets</a>
                                             </div>
                                           )}
                                         </div>
@@ -2387,18 +2411,30 @@ export default function Home() {
                         const tLink = (name: string, bold: boolean) => (
                           <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{name}</span>
                         )
-                        return (
+                        if (result) return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '1px 0' }}>
-                            {result ? (
-                              <span style={{ color: '#333' }}>
-                                {tLink(gm.teamA, result.scoreA > result.scoreB)}
-                                {' '}<strong>{result.scoreA}–{result.scoreB}</strong>{' '}
-                                {tLink(gm.teamB, result.scoreB > result.scoreA)}
-                              </span>
-                            ) : (
-                              <span style={{ color: '#aaa' }}>
-                                {tLink(gm.teamA, false)} vs {tLink(gm.teamB, false)} &bull; {gm.date.split('•')[0]?.trim()}
-                              </span>
+                            <span style={{ color: '#333' }}>
+                              {tLink(gm.teamA, result.scoreA > result.scoreB)}
+                              {' '}<strong>{result.scoreA}–{result.scoreB}</strong>{' '}
+                              {tLink(gm.teamB, result.scoreB > result.scoreA)}
+                            </span>
+                          </div>
+                        )
+                        const kA = kalshiTeamOdds(gm.teamA, gm.group)
+                        const kB = kalshiTeamOdds(gm.teamB, gm.group)
+                        return (
+                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '3px 0', borderTop: '1px solid #eee' }}>
+                            <div>
+                              {tLink(gm.teamA, false)} vs {tLink(gm.teamB, false)}
+                            </div>
+                            <div style={{ color: '#888', fontSize: '10px', marginTop: '1px' }}>
+                              {venueCity(gm.venue)} &bull; {gm.date}
+                              {' '}<a href={stubhubUrl(gm.teamA, gm.teamB)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>Tickets</a>
+                            </div>
+                            {(kA || kB) && (
+                              <div style={{ fontSize: '10px', color: '#6c3483', marginTop: '1px' }}>
+                                Kalshi: {kA ? `${gm.teamA} ${Math.round(kA.pQualify)}% adv` : ''}{kA && kB ? ' · ' : ''}{kB ? `${gm.teamB} ${Math.round(kB.pQualify)}% adv` : ''}
+                              </div>
                             )}
                           </div>
                         )
@@ -2700,6 +2736,20 @@ export default function Home() {
                             <div style={{ textAlign: 'center', fontSize: '12px', color: '#888', marginTop: '6px' }}>
                               {gm.date}
                             </div>
+                            {!result && (() => {
+                              const kA = kalshiTeamOdds(gm.teamA, gm.group)
+                              const kB = kalshiTeamOdds(gm.teamB, gm.group)
+                              return (
+                                <div style={{ textAlign: 'center', marginTop: '6px' }}>
+                                  {(kA || kB) && (
+                                    <div style={{ fontSize: '11px', color: '#6c3483' }}>
+                                      Kalshi: {kA ? `${gm.teamA} ${Math.round(kA.pQualify)}% adv` : ''}{kA && kB ? ' · ' : ''}{kB ? `${gm.teamB} ${Math.round(kB.pQualify)}% adv` : ''}
+                                    </div>
+                                  )}
+                                  <a href={stubhubUrl(gm.teamA, gm.teamB)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none' }}>Buy Tickets</a>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                       )
