@@ -2435,67 +2435,127 @@ export default function Home() {
           return { name: rec ? `${team.name} (${rec})` : team.name, pct: team.R32?.total || 0 }
         }
 
-        const slotStyle = (isKnown: boolean): React.CSSProperties => ({
-          padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap',
-          minWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis',
-          background: isKnown ? '#e8f5e9' : 'white',
-          fontWeight: isKnown ? 'bold' : 'normal',
-          color: isKnown ? '#1b5e20' : '#333',
-        })
+        const SLOT_W = 120
+        const CONN_W = 24
+        const SLOT_H = 52
 
-        const renderR32 = (matchNum: number) => {
-          const match = getMatch(matchNum)
-          const topTeam = getTopTeamForSlot(matchNum, 'A')
-          const botTeam = getTopTeamForSlot(matchNum, 'B')
-          const topKnown = topTeam != null && topTeam.pct >= 90
-          const botKnown = botTeam != null && botTeam.pct >= 90
+        const upperRounds = [
+          [74, 77, 73, 75, 83, 84, 81, 82],
+          [89, 90, 93, 94],
+          [97, 98],
+          [101],
+        ]
+        const lowerRounds = [
+          [76, 78, 79, 80, 86, 88, 85, 87],
+          [91, 92, 95, 96],
+          [99, 100],
+          [102],
+        ]
+
+        const renderSlot = (matchNum: number) => {
+          const m = getMatch(matchNum)
+          const rc = roundColor[m.round] || '#003366'
+          let topText: string, botText: string
+          let topGreen = false, botGreen = false
+
+          if (m.round === 'R32') {
+            const topTeam = getTopTeamForSlot(matchNum, 'A')
+            const botTeam = getTopTeamForSlot(matchNum, 'B')
+            topGreen = topTeam != null && topTeam.pct >= 90
+            botGreen = botTeam != null && botTeam.pct >= 90
+            topText = topGreen ? topTeam!.name : (topTeam ? topTeam.name : getSlotLabel(m, 'A'))
+            botText = botGreen ? botTeam!.name : (botTeam ? botTeam.name : getSlotLabel(m, 'B'))
+          } else {
+            topText = getSlotLabel(m, 'A')
+            botText = getSlotLabel(m, 'B')
+          }
+
           return (
             <div
-              onClick={() => { setSelectedMatch(matchNum); setResults(null); setViewMode('match'); setSelectedRound('R32') }}
-              style={{ cursor: 'pointer', border: '1px solid #ccc', borderRadius: '4px', overflow: 'hidden' }}
+              onClick={() => {
+                if (m.round === 'R32') {
+                  setSelectedMatch(matchNum); setResults(null); setViewMode('match'); setSelectedRound('R32')
+                }
+              }}
+              style={{
+                cursor: m.round === 'R32' ? 'pointer' : 'default',
+                border: '1px solid #ccc', borderRadius: '3px', overflow: 'hidden',
+                width: SLOT_W, background: 'white', boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              }}
             >
-              <div style={{ ...slotStyle(topKnown), borderBottom: '1px solid #ddd' }}>
-                {topKnown ? topTeam!.name : (topTeam ? topTeam.name : getSlotLabel(match, 'A'))}
+              <div style={{
+                padding: '1px 4px', fontSize: '8px', fontWeight: 'bold',
+                background: rc, color: 'white', lineHeight: '13px',
+              }}>
+                M{matchNum}
               </div>
-              <div style={slotStyle(botKnown)}>
-                {botKnown ? botTeam!.name : (botTeam ? botTeam.name : getSlotLabel(match, 'B'))}
+              <div style={{
+                padding: '2px 5px', fontSize: '10px', borderBottom: '1px solid #eee',
+                background: topGreen ? '#e8f5e9' : '#fff',
+                fontWeight: topGreen ? 'bold' : 'normal',
+                color: topGreen ? '#1b5e20' : '#333',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                lineHeight: '15px',
+              }}>
+                {topText}
+              </div>
+              <div style={{
+                padding: '2px 5px', fontSize: '10px',
+                background: botGreen ? '#e8f5e9' : '#fff',
+                fontWeight: botGreen ? 'bold' : 'normal',
+                color: botGreen ? '#1b5e20' : '#333',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                lineHeight: '15px',
+              }}>
+                {botText}
               </div>
             </div>
           )
         }
 
-        const renderBracket = (matchNum: number): JSX.Element => {
-          const match = getMatch(matchNum)
-          if (match.round === 'R32') return renderR32(matchNum)
+        const renderHalf = (rounds: number[][]) => {
+          const baseCount = rounds[0].length
+          const totalH = baseCount * SLOT_H
 
-          const [topChild, botChild] = match.feedsFrom!
-          const rc = roundColor[match.round] || '#003366'
           return (
-            <div style={{ display: 'flex', alignItems: 'stretch' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingBottom: '3px' }}>
-                  {renderBracket(topChild)}
-                </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingTop: '3px' }}>
-                  {renderBracket(botChild)}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', width: '14px' }}>
-                <div style={{ flex: 1, borderRight: '2px solid #bbb', borderBottom: '2px solid #bbb' }} />
-                <div style={{ flex: 1, borderRight: '2px solid #bbb' }} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ width: '6px', height: '2px', background: '#bbb' }} />
-                <div style={{
-                  fontSize: '9px', padding: '2px 5px', background: rc, color: 'white',
-                  borderRadius: '3px', whiteSpace: 'nowrap', fontWeight: 'bold',
-                }}>
-                  M{matchNum}
-                </div>
-              </div>
+            <div style={{ display: 'flex', height: totalH }}>
+              {rounds.map((matchNums, ri) => {
+                const colElems = [
+                  <div key={`col-${ri}`} style={{ display: 'flex', flexDirection: 'column', width: SLOT_W }}>
+                    {matchNums.map(mn => (
+                      <div key={mn} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {renderSlot(mn)}
+                      </div>
+                    ))}
+                  </div>
+                ]
+                if (ri < rounds.length - 1) {
+                  colElems.push(
+                    <div key={`conn-${ri}`} style={{ display: 'flex', flexDirection: 'column', width: CONN_W }}>
+                      {Array.from({ length: matchNums.length / 2 }, (_, i) => (
+                        <div key={i} style={{ flex: 1 }}>
+                          <svg
+                            viewBox={`0 0 ${CONN_W} 100`}
+                            preserveAspectRatio="none"
+                            style={{ display: 'block', width: '100%', height: '100%' }}
+                          >
+                            <line x1="0" y1="25" x2={CONN_W / 2} y2="25" stroke="#bbb" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1={CONN_W / 2} y1="25" x2={CONN_W / 2} y2="75" stroke="#bbb" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1={CONN_W / 2} y1="50" x2={CONN_W} y2="50" stroke="#bbb" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1="0" y1="75" x2={CONN_W / 2} y2="75" stroke="#bbb" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                          </svg>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+                return colElems
+              })}
             </div>
           )
         }
+
+        const totalW = 4 * SLOT_W + 3 * CONN_W
 
         return (
           <div>
@@ -2503,30 +2563,43 @@ export default function Home() {
               <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>Running simulation…</div>
             )}
 
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#003366', marginBottom: '6px' }}>Upper Bracket &rarr; Semifinal M101</div>
-            <div style={{ overflowX: 'auto', paddingBottom: '12px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', minWidth: 'min-content' }}>
-                {renderBracket(101)}
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, paddingBottom: 8 }}>
+              <div style={{ minWidth: totalW }}>
+                <div style={{ display: 'flex', marginBottom: 4 }}>
+                  {['Round of 32', 'Round of 16', 'Quarterfinals', 'Semifinals'].map((label, i) => {
+                    const els = []
+                    if (i > 0) els.push(<div key={`sp-${i}`} style={{ width: CONN_W }} />)
+                    els.push(
+                      <div key={`hdr-${i}`} style={{ width: SLOT_W, textAlign: 'center', fontSize: 10, fontWeight: 'bold', color: '#666' }}>
+                        {label}
+                      </div>
+                    )
+                    return els
+                  })}
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 'bold', color: '#003366', margin: '6px 0 4px' }}>
+                  Upper Bracket &rarr; SF M101
+                </div>
+                {renderHalf(upperRounds)}
+
+                <div style={{
+                  margin: '12px 0', padding: '10px', borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 16, fontWeight: 'bold', letterSpacing: '0.1em' }}>FINAL &mdash; M104</div>
+                  <div style={{ fontSize: 11, opacity: 0.8 }}>{getMatch(104).date} &bull; {venueCity(getMatch(104).venue)}</div>
+                  <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2 }}>3rd Place: M103 &bull; {getMatch(103).date}</div>
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 'bold', color: '#003366', margin: '6px 0 4px' }}>
+                  Lower Bracket &rarr; SF M102
+                </div>
+                {renderHalf(lowerRounds)}
               </div>
             </div>
 
-            <div style={{
-              margin: '12px 0', padding: '12px', borderRadius: '8px',
-              background: 'linear-gradient(135deg, #1a1a2e, #16213e)', color: 'white', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.1em' }}>FINAL &mdash; M104</div>
-              <div style={{ fontSize: '12px', opacity: 0.8 }}>{getMatch(104).date} &bull; {venueCity(getMatch(104).venue)}</div>
-              <div style={{ fontSize: '11px', opacity: 0.6, marginTop: '4px' }}>3rd Place: M103 &bull; {getMatch(103).date} &bull; {venueCity(getMatch(103).venue)}</div>
-            </div>
-
-            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#003366', marginBottom: '6px' }}>Lower Bracket &rarr; Semifinal M102</div>
-            <div style={{ overflowX: 'auto', paddingBottom: '12px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', minWidth: 'min-content' }}>
-                {renderBracket(102)}
-              </div>
-            </div>
-
-            <div style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
               Tap any R32 matchup for detailed probabilities. Green = clinched ({'≥'}90%).
               {ratingSource && <> | Ratings: {ratingSource}</>}
               {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
