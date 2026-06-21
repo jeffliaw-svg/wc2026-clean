@@ -1189,15 +1189,16 @@ export default function Home() {
       const iterations = 10000
       const groups = Object.keys(groupTeams)
 
-      // Per-team tracker: round → venue city → count
+      // Per-team tracker: round → venue city → count, plus group position counts
       const tracker: Record<string, {
         R32: Record<string, number>; R16: Record<string, number>
         QF: Record<string, number>; SF: Record<string, number>
         Final: Record<string, number>; Champion: number
+        grpPos: [number, number, number, number]
       }> = {}
       for (const g of groups) {
         for (const t of groupTeams[g]) {
-          tracker[t.name] = { R32: {}, R16: {}, QF: {}, SF: {}, Final: {}, Champion: 0 }
+          tracker[t.name] = { R32: {}, R16: {}, QF: {}, SF: {}, Final: {}, Champion: 0, grpPos: [0, 0, 0, 0] }
         }
       }
 
@@ -1211,7 +1212,12 @@ export default function Home() {
       for (let iter = 0; iter < iterations; iter++) {
         // 1. Simulate all 12 group stages (with points for 3rd-place ranking)
         const gs: Record<string, { name: string; rating: number; points: number; gd: number; gf: number }[]> = {}
-        for (const g of groups) gs[g] = simulateGroupFull(resolveGroup(g), g)
+        for (const g of groups) {
+          gs[g] = simulateGroupFull(resolveGroup(g), g)
+          for (let pos = 0; pos < gs[g].length; pos++) {
+            tracker[gs[g][pos].name].grpPos[pos]++
+          }
+        }
 
         // 2. Rank 3rd-place teams, top 8 qualify
         const thirds = groups.map(g => ({ group: g, ...gs[g][2] }))
@@ -1322,6 +1328,7 @@ export default function Home() {
           QF: roundData(stats.QF), SF: roundData(stats.SF),
           Final: roundData(stats.Final),
           Champion: (stats.Champion / iterations) * 100,
+          grpPos: stats.grpPos.map(c => (c / iterations) * 100) as [number, number, number, number],
         }
       }).sort((a, b) => b.rating - a.rating)
 
@@ -2265,78 +2272,132 @@ export default function Home() {
 
       {/* ═══════════════════ STANDINGS VIEW ═══════════════════ */}
       {viewMode === 'standings' && (() => {
+        const teamSim = teamViewResults as any[] | null
         const computeStandings = (group: string) => {
           const teams = groupTeams[group]
           return teams.map(t => {
             const r = getTeamRecord(t.name)
             const pts = r.w * 3 + r.d
             const played = r.w + r.d + r.l
-            return { ...t, ...r, pts, played }
+            const sim = teamSim?.find((s: any) => s.name === t.name)
+            return {
+              ...t, ...r, pts, played,
+              pct1st: sim?.grpPos?.[0] ?? null,
+              pct2nd: sim?.grpPos?.[1] ?? null,
+              pctR32: sim?.R32?.total ?? null,
+            }
           }).sort((a, b) => b.pts !== a.pts ? b.pts - a.pts : (b.gf - b.ga) !== (a.gf - a.ga) ? (b.gf - b.ga) - (a.gf - a.ga) : b.gf - a.gf)
         }
         const groups = Object.keys(groupTeams).sort()
+        const hasSim = teamSim != null
+        const th = (label: string, w?: string, bg?: string): React.CSSProperties => ({
+          padding: '5px 4px', textAlign: 'center', width: w || '24px', fontSize: '10px',
+          ...(bg ? { background: bg, color: 'white' } : {}),
+        })
+        const td = (bold?: boolean): React.CSSProperties => ({
+          padding: '4px 4px', textAlign: 'center', fontSize: '12px',
+          ...(bold ? { fontWeight: 'bold' } : {}),
+        })
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
-            {groups.map(g => {
-              const standings = computeStandings(g)
-              const groupGames = groupMatches.filter(m => m.group === g)
-              return (
-                <div key={g} style={{ background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-                  <div style={{ background: '#003366', color: 'white', padding: '8px 12px', fontWeight: 'bold', fontSize: '14px' }}>
-                    Group {g}
+          <div>
+            {calculating && !hasSim && (
+              <div style={{ padding: '15px', textAlign: 'center', color: '#888' }}>Running simulation…</div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '16px' }}>
+              {groups.map(g => {
+                const standings = computeStandings(g)
+                const groupGames = groupMatches.filter(m => m.group === g)
+                const played = groupGames.filter(gm => groupMatchResult(gm) !== null).length
+                return (
+                  <div key={g} style={{ background: 'white', borderRadius: '8px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
+                    <div style={{
+                      background: '#003366', color: 'white', padding: '8px 12px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    }}>
+                      <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Group {g}</span>
+                      <span style={{ fontSize: '11px', opacity: 0.7 }}>{played}/6 played</span>
+                    </div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '360px' }}>
+                        <thead>
+                          <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
+                            <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px' }}>Team</th>
+                            <th style={th('P')}>P</th>
+                            <th style={th('W')}>W</th>
+                            <th style={th('D')}>D</th>
+                            <th style={th('L')}>L</th>
+                            <th style={th('GD', '28px')}>GD</th>
+                            <th style={th('Pts', '28px')}>Pts</th>
+                            {hasSim && <>
+                              <th style={th('1st', '36px', '#1b5e20')}>1st</th>
+                              <th style={th('2nd', '36px', '#2e7d32')}>2nd</th>
+                              <th style={th('R32', '36px', '#00509e')}>R32</th>
+                            </>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.map((t, i) => {
+                            const gd = t.gf - t.ga
+                            const isElim = hasSim && t.pctR32 !== null && t.pctR32 < 1
+                            return (
+                              <tr key={t.name} style={{
+                                borderBottom: '1px solid #eee',
+                                background: isElim ? '#fff5f5' : i < 2 ? '#e8f5e9' : i === 2 ? '#fff8e1' : 'white',
+                                opacity: isElim ? 0.6 : 1,
+                              }}>
+                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px' }}>
+                                  {t.name}
+                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal', marginLeft: '4px' }}>{t.gf}:{t.ga}</span>}
+                                </td>
+                                <td style={td()}>{t.played}</td>
+                                <td style={td()}>{t.w}</td>
+                                <td style={td()}>{t.d}</td>
+                                <td style={td()}>{t.l}</td>
+                                <td style={td()}>{t.played > 0 ? (gd > 0 ? `+${gd}` : gd) : '–'}</td>
+                                <td style={td(true)}>{t.pts}</td>
+                                {hasSim && <>
+                                  <td style={{ ...td(), color: '#1b5e20', fontWeight: t.pct1st >= 90 ? 'bold' : 'normal' }}>
+                                    {t.pct1st >= 99.5 ? '99+' : t.pct1st < 0.5 ? '<1' : Math.round(t.pct1st)}%
+                                  </td>
+                                  <td style={{ ...td(), color: '#2e7d32' }}>
+                                    {t.pct2nd >= 99.5 ? '99+' : t.pct2nd < 0.5 ? '<1' : Math.round(t.pct2nd)}%
+                                  </td>
+                                  <td style={{ ...td(true), color: '#00509e' }}>
+                                    {t.pctR32 >= 99.5 ? '99+' : t.pctR32 < 0.5 ? '<1' : Math.round(t.pctR32)}%
+                                  </td>
+                                </>}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style={{ padding: '6px 8px', background: '#fafafa', borderTop: '1px solid #eee' }}>
+                      {groupGames.map(gm => {
+                        const result = groupMatchResult(gm)
+                        return (
+                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '1px 0' }}>
+                            {result ? (
+                              <span style={{ color: '#333' }}>
+                                <span style={{ fontWeight: result.scoreA > result.scoreB ? 'bold' : 'normal' }}>{gm.teamA}</span>
+                                {' '}<strong>{result.scoreA}–{result.scoreB}</strong>{' '}
+                                <span style={{ fontWeight: result.scoreB > result.scoreA ? 'bold' : 'normal' }}>{gm.teamB}</span>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#aaa' }}>{gm.teamA} vs {gm.teamB} &bull; {gm.date.split('•')[0]?.trim()}</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <thead>
-                      <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #ddd' }}>
-                        <th style={{ padding: '5px 8px', textAlign: 'left' }}>Team</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '28px' }}>P</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '28px' }}>W</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '28px' }}>D</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '28px' }}>L</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '32px' }}>GF</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '32px' }}>GA</th>
-                        <th style={{ padding: '5px 4px', textAlign: 'center', width: '32px' }}>GD</th>
-                        <th style={{ padding: '5px 6px', textAlign: 'center', width: '32px', fontWeight: 'bold' }}>Pts</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {standings.map((t, i) => (
-                        <tr key={t.name} style={{
-                          borderBottom: '1px solid #eee',
-                          background: i < 2 ? '#e8f5e9' : i === 2 ? '#fff8e1' : 'white',
-                        }}>
-                          <td style={{ padding: '5px 8px', fontWeight: 'bold' }}>{t.name}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.played}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.w}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.d}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.l}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.gf}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.ga}</td>
-                          <td style={{ padding: '5px 4px', textAlign: 'center' }}>{t.gf - t.ga > 0 ? '+' : ''}{t.gf - t.ga}</td>
-                          <td style={{ padding: '5px 6px', textAlign: 'center', fontWeight: 'bold', fontSize: '13px' }}>{t.pts}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div style={{ padding: '6px 8px', background: '#fafafa', borderTop: '1px solid #eee' }}>
-                    {groupGames.map(gm => {
-                      const result = groupMatchResult(gm)
-                      return (
-                        <div key={gm.matchNum} style={{ fontSize: '11px', color: result ? '#333' : '#aaa', padding: '1px 0' }}>
-                          {result ? (
-                            <span>{gm.teamA} <strong>{result.scoreA}–{result.scoreB}</strong> {gm.teamB}</span>
-                          ) : (
-                            <span style={{ color: '#999' }}>{gm.teamA} vs {gm.teamB} &bull; {gm.date.split('•')[0]?.trim()}</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-            <div style={{ gridColumn: '1 / -1', fontSize: '11px', color: '#888', padding: '4px 0' }}>
-              Green = auto-qualifies (top 2). Yellow = 3rd place (8 of 12 advance).
+                )
+              })}
+            </div>
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '12px' }}>
+              Green = top 2 (auto-qualify). Yellow = 3rd (8 of 12 advance). Red tint = eliminated.
+              {' '}GF:GA shown next to team name. 1st/2nd/R32 columns from 10,000 MC simulations.
+              {ratingSource && <> | Ratings: {ratingSource}</>}
               {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
             </div>
           </div>
