@@ -1701,10 +1701,31 @@ export default function Home() {
     return null
   }
 
-  const stubhubUrl = (teamA: string, teamB: string, venue?: string) => {
-    const parts = ['FIFA World Cup 2026', teamA, 'vs', teamB]
-    if (venue) parts.push(venueCity(venue).split(',')[0].split('/')[0].trim())
-    return `https://www.stubhub.com/secure/search?q=${encodeURIComponent(parts.join(' '))}`
+  const stubhubEventIds: Record<number, number> = {
+    4:153020709, 5:153020611, 9:153020800, 10:153022356,
+    13:153020522, 16:153022572, 17:153022598, 18:153022585, 19:153021561,
+    22:153033433, 25:153022626, 28:153020461, 30:153022742,
+    34:153021562, 35:153020842, 37:153020717, 38:154852936, 39:153022910,
+    40:153023087, 43:153021379, 44:153020662,
+    45:153020851, 46:153033471, 47:153023421, 48:153023376,
+    49:153033484, 50:153033494, 51:153020467, 52:153020556,
+    53:153023548, 54:153023575, 55:153020718, 56:153020677,
+    57:153023689, 58:153023579, 59:153021390, 60:153021563,
+    61:153020570, 62:153020469, 63:156535642, 64:153020962,
+    65:153023735, 66:153023734, 67:153021391, 68:153021572,
+    69:153023764, 70:153023736, 71:153023828, 72:153023766,
+    73:153020724, 74:153023830, 75:153033502, 76:153021172, 77:153023840, 78:153021470,
+    79:153033506, 80:153023846, 81:153020696, 82:153020573, 83:153023856, 84:153020726,
+    85:153020498, 86:153023861, 87:153021573, 88:153021509,
+    89:153023863, 90:153021196, 91:153023886, 92:153033507, 93:153021528, 94:153020574,
+    95:155049347, 96:153020500,
+    97:153023895, 98:153020733, 99:153023896, 100:153021616,
+    101:153021542, 102:153023901, 103:153023903, 104:153020449,
+  }
+  const stubhubUrl = (matchNum?: number) => {
+    const eid = matchNum ? stubhubEventIds[matchNum] : undefined
+    if (eid) return `https://www.stubhub.com/event/${eid}/`
+    return 'https://www.stubhub.com/world-cup-tickets/grouping/45410'
   }
 
   // ─── Auto-run simulations ────────────────────────────────────
@@ -2243,7 +2264,7 @@ export default function Home() {
                                                   Kalshi: {kMe ? `${t.name.split(' ').pop()} ${Math.round(kMe.pQualify)}%` : ''}{kMe && kOpp ? ' · ' : ''}{kOpp ? `${opp.split(' ').pop()} ${Math.round(kOpp.pQualify)}%` : ''} adv
                                                 </div>
                                               )}
-                                              <a href={stubhubUrl(gm.teamA, gm.teamB, gm.venue)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', marginTop: '3px', display: 'inline-block', fontWeight: 'bold' }}>Buy Tickets</a>
+                                              <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', marginTop: '3px', display: 'inline-block', fontWeight: 'bold' }}>Buy Tickets</a>
                                             </div>
                                           )}
                                         </div>
@@ -2278,7 +2299,7 @@ export default function Home() {
                                             {matchesHere.map(m => (
                                               <span key={m.matchNum}>
                                                 M{m.matchNum}: {m.date.split('•')[0]?.trim()}
-                                                {' '}<a href={stubhubUrl(t.name, roundLabel[rd] || rd, m.venue)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>Tickets</a>
+                                                {' '}<a href={stubhubUrl(m.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>Tickets</a>
                                                 {' · '}
                                               </span>
                                             ))}
@@ -2460,7 +2481,7 @@ export default function Home() {
                             </div>
                             <div style={{ textAlign: 'center', color: '#888', fontSize: '10px', marginTop: '1px' }}>
                               {venueCity(gm.venue)} &bull; {gm.date.split('•')[0]?.trim()}
-                              {' · '}<a href={stubhubUrl(gm.teamA, gm.teamB, gm.venue)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                              {' · '}<a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
                             </div>
                           </div>
                         )
@@ -2772,7 +2793,7 @@ export default function Home() {
                                       Kalshi: {kA ? `${gm.teamA} ${Math.round(kA.pQualify)}% adv` : ''}{kA && kB ? ' · ' : ''}{kB ? `${gm.teamB} ${Math.round(kB.pQualify)}% adv` : ''}
                                     </div>
                                   )}
-                                  <a href={stubhubUrl(gm.teamA, gm.teamB, gm.venue)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Buy Tickets</a>
+                                  <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Buy Tickets</a>
                                 </div>
                               )
                             })()}
