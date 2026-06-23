@@ -641,6 +641,7 @@ export default function Home() {
   const [showDetail, setShowDetail] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [ratingSource, setRatingSource] = useState<string>('')
+  const [liveRatings, setLiveRatings] = useState<Record<string, number>>({})
   const [viewMode, setViewMode] = useState<'match' | 'team' | 'standings' | 'bracket' | 'venue'>('team')
   const [teamViewResults, setTeamViewResults] = useState<any[] | null>(null)
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null)
@@ -650,7 +651,6 @@ export default function Home() {
   const [venueGroupExpanded, setVenueGroupExpanded] = useState(true)
   const [venueKnockoutExpanded, setVenueKnockoutExpanded] = useState(true)
   const [expandedBracketMatch, setExpandedBracketMatch] = useState<number | null>(null)
-  const [kalshiData, setKalshiData] = useState<Record<string, { team: string; pWin: number; pQualify: number }[]> | null>(null)
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
   const [resultsSource, setResultsSource] = useState<string>('')
@@ -719,6 +719,35 @@ export default function Home() {
       }
     }
     return probs
+  }
+
+  const teamAbbrev: Record<string, string> = {
+    'Mexico': 'MEX', 'South Africa': 'RSA', 'South Korea': 'KOR', 'Czechia': 'CZE',
+    'Canada': 'CAN', 'Bosnia and Herzegovina': 'BIH', 'Qatar': 'QAT', 'Switzerland': 'SUI',
+    'Brazil': 'BRA', 'Morocco': 'MAR', 'Scotland': 'SCO', 'Haiti': 'HAI',
+    'United States': 'USA', 'Paraguay': 'PAR', 'Australia': 'AUS', 'Türkiye': 'TUR',
+    'Germany': 'GER', 'Curaçao': 'CUW', "Côte d'Ivoire": 'CIV', 'Ecuador': 'ECU',
+    'Netherlands': 'NED', 'Japan': 'JPN', 'Tunisia': 'TUN', 'Sweden': 'SWE',
+    'Belgium': 'BEL', 'Egypt': 'EGY', 'Iran': 'IRN', 'New Zealand': 'NZL',
+    'Spain': 'ESP', 'Cape Verde': 'CPV', 'Saudi Arabia': 'KSA', 'Uruguay': 'URU',
+    'France': 'FRA', 'Senegal': 'SEN', 'Iraq': 'IRQ', 'Norway': 'NOR',
+    'Argentina': 'ARG', 'Algeria': 'ALG', 'Austria': 'AUT', 'Jordan': 'JOR',
+    'Portugal': 'POR', 'DR Congo': 'COD', 'Uzbekistan': 'UZB', 'Colombia': 'COL',
+    'England': 'ENG', 'Croatia': 'CRO', 'Ghana': 'GHA', 'Panama': 'PAN',
+  }
+  const abbrev = (name: string) => teamAbbrev[name] || name.slice(0, 3).toUpperCase()
+
+  const getMatchOdds = (teamA: string, teamB: string) => {
+    const getR = (name: string) => {
+      if (liveRatings[name]) return liveRatings[name]
+      for (const g of Object.values(groupTeams)) {
+        const t = g.find(x => x.name === name)
+        if (t) return t.rating
+      }
+      return 1500
+    }
+    const { pA, pDraw, pB } = calcMatchProbs(getR(teamA), getR(teamB))
+    return { pA: Math.round(pA * 100), pDraw: Math.round(pDraw * 100), pB: Math.round(pB * 100) }
   }
 
   const poissonSample = (lambda: number): number => {
@@ -858,6 +887,7 @@ export default function Home() {
       if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch ratings')
       const ratings: Record<string, number> = ratingData.teams
       setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
+      setLiveRatings(prev => Object.keys(prev).length ? prev : ratings)
 
       const iterations = 10000
       const match = currentMatch
@@ -1184,6 +1214,7 @@ export default function Home() {
       if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch ratings')
       const ratings: Record<string, number> = ratingData.teams
       setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
+      setLiveRatings(prev => Object.keys(prev).length ? prev : ratings)
 
       const resolveGroup = (groupId: string) =>
         groupTeams[groupId].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
@@ -1351,6 +1382,7 @@ export default function Home() {
       if (!ratingData.success || !ratingData.teams) throw new Error('Failed to fetch ratings')
       const ratings: Record<string, number> = ratingData.teams
       setRatingSource(ratingData.source === 'fifa-api' ? 'Live FIFA Rankings' : `FIFA Rankings (${ratingData.lastUpdated})`)
+      setLiveRatings(prev => Object.keys(prev).length ? prev : ratings)
 
       const resolveGroup = (groupId: string) =>
         groupTeams[groupId].map(t => ({ ...t, rating: ratings[t.name] || t.rating }))
@@ -1671,35 +1703,8 @@ export default function Home() {
           setLiveResultsLoaded(true)
         }
       })
-    fetch('/api/kalshi')
-      .then(r => r.json())
-      .then(data => {
-        if (!cancelled && data?.success && data?.groups) setKalshiData(data.groups)
-      })
-      .catch(() => {})
     return () => { cancelled = true }
   }, [])
-
-  const kalshiNameMap: Record<string, string> = {
-    'United States': 'USA', 'Türkiye': 'Turkey', 'South Korea': 'Korea Republic',
-    "Côte d'Ivoire": 'Ivory Coast', 'Curaçao': 'Curacao', 'Czechia': 'Czech Republic',
-    'Bosnia and Herzegovina': 'Bosnia', 'DR Congo': 'Congo', 'Cape Verde': 'Cabo Verde',
-  }
-
-  const kalshiTeamOdds = (teamName: string, group: string): { pWin: number; pQualify: number } | null => {
-    if (!kalshiData?.[group]) return null
-    const normalize = (n: string) => n.toLowerCase().replace(/[^a-z ]/g, '').trim()
-    const variants = [teamName, kalshiNameMap[teamName]].filter(Boolean) as string[]
-    for (const v of variants) {
-      const k = kalshiData[group].find(t =>
-        normalize(t.team) === normalize(v) ||
-        normalize(t.team).includes(normalize(v)) ||
-        normalize(v).includes(normalize(t.team))
-      )
-      if (k) return { pWin: k.pWin, pQualify: k.pQualify }
-    }
-    return null
-  }
 
   const stubhubEventIds: Record<number, number> = {
     4:153020709, 5:153020611, 9:153020800, 10:153022356,
@@ -2238,8 +2243,6 @@ export default function Home() {
                                     {matches.map(gm => {
                                       const result = groupMatchResult(gm)
                                       const opp = gm.teamA === t.name ? gm.teamB : gm.teamA
-                                      const kMe = !result ? kalshiTeamOdds(t.name, t.group) : null
-                                      const kOpp = !result ? kalshiTeamOdds(opp, t.group) : null
                                       return (
                                         <div key={gm.matchNum} style={{ background: result ? 'white' : '#f0faf7', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#ddd' : '#c8e6d8'}`, fontSize: '12px' }}>
                                           <div style={{ fontWeight: 'bold' }}>
@@ -2256,17 +2259,18 @@ export default function Home() {
                                                 {o} {my}–{their}
                                               </div>
                                             )
-                                          })() : (
+                                          })() : (() => {
+                                            const odds = getMatchOdds(gm.teamA, gm.teamB)
+                                            return (
                                             <div>
                                               <div style={{ color: '#0d7c66', marginTop: '2px' }}>{gm.date}</div>
-                                              {(kMe || kOpp) && (
-                                                <div style={{ color: '#6c3483', fontSize: '10px', marginTop: '2px' }}>
-                                                  Kalshi: {kMe ? `${t.name.split(' ').pop()} ${Math.round(kMe.pQualify)}%` : ''}{kMe && kOpp ? ' · ' : ''}{kOpp ? `${opp.split(' ').pop()} ${Math.round(kOpp.pQualify)}%` : ''} adv
-                                                </div>
-                                              )}
+                                              <div style={{ color: '#6c3483', fontSize: '10px', marginTop: '2px' }}>
+                                                {abbrev(gm.teamA)} {odds.pA}% · Draw {odds.pDraw}% · {abbrev(gm.teamB)} {odds.pB}%
+                                              </div>
                                               <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', marginTop: '3px', display: 'inline-block', fontWeight: 'bold' }}>Buy Tickets</a>
                                             </div>
-                                          )}
+                                            )
+                                          })()}
                                         </div>
                                       )
                                     })}
@@ -2464,19 +2468,18 @@ export default function Home() {
                             <span style={{ flex: 1, textAlign: 'left' }}>{tLink(gm.teamB, result.scoreB > result.scoreA)}</span>
                           </div>
                         )
-                        const kA = kalshiTeamOdds(gm.teamA, gm.group)
-                        const kB = kalshiTeamOdds(gm.teamB, gm.group)
+                        const odds = getMatchOdds(gm.teamA, gm.teamB)
                         return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '4px 0', borderTop: '1px solid #eee' }}>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                               <span style={{ flex: 1, textAlign: 'right' }}>
                                 {tLink(gm.teamA, false)}
-                                {kA ? <span style={{ fontSize: '9px', color: '#6c3483', marginLeft: '3px' }}>{Math.round(kA.pQualify)}%</span> : null}
+                                <span style={{ fontSize: '9px', color: '#6c3483', marginLeft: '3px' }}>{odds.pA}%</span>
                               </span>
-                              <span style={{ minWidth: '30px', textAlign: 'center', color: '#999', fontSize: '10px' }}>vs</span>
+                              <span style={{ minWidth: '50px', textAlign: 'center', color: '#999', fontSize: '9px' }}>Draw {odds.pDraw}%</span>
                               <span style={{ flex: 1, textAlign: 'left' }}>
+                                <span style={{ fontSize: '9px', color: '#6c3483', marginRight: '3px' }}>{odds.pB}%</span>
                                 {tLink(gm.teamB, false)}
-                                {kB ? <span style={{ fontSize: '9px', color: '#6c3483', marginLeft: '3px' }}>{Math.round(kB.pQualify)}%</span> : null}
                               </span>
                             </div>
                             <div style={{ textAlign: 'center', color: '#888', fontSize: '10px', marginTop: '1px' }}>
@@ -2784,15 +2787,12 @@ export default function Home() {
                               {gm.date}
                             </div>
                             {!result && (() => {
-                              const kA = kalshiTeamOdds(gm.teamA, gm.group)
-                              const kB = kalshiTeamOdds(gm.teamB, gm.group)
+                              const odds = getMatchOdds(gm.teamA, gm.teamB)
                               return (
                                 <div style={{ textAlign: 'center', marginTop: '6px' }}>
-                                  {(kA || kB) && (
-                                    <div style={{ fontSize: '11px', color: '#6c3483' }}>
-                                      Kalshi: {kA ? `${gm.teamA} ${Math.round(kA.pQualify)}% adv` : ''}{kA && kB ? ' · ' : ''}{kB ? `${gm.teamB} ${Math.round(kB.pQualify)}% adv` : ''}
-                                    </div>
-                                  )}
+                                  <div style={{ fontSize: '11px', color: '#6c3483' }}>
+                                    {abbrev(gm.teamA)} {odds.pA}% · Draw {odds.pDraw}% · {abbrev(gm.teamB)} {odds.pB}%
+                                  </div>
                                   <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Buy Tickets</a>
                                 </div>
                               )
