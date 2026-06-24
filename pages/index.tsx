@@ -1737,9 +1737,6 @@ export default function Home() {
           setResultsSource(data.source || 'live')
           setLiveResultsLoaded(true)
           if (changed || !liveResultsLoaded) {
-            setResults(null)
-            setTeamViewResults(null)
-            setVenueViewResults(null)
             hasAutoRunTeam.current = false
             hasAutoRunVenue.current = false
           }
@@ -1752,7 +1749,7 @@ export default function Home() {
         })
     }
     fetchResults()
-    const interval = setInterval(fetchResults, 60000)
+    const interval = setInterval(fetchResults, 600000)
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
@@ -1835,10 +1832,15 @@ export default function Home() {
 
       {/* ── TODAY BAR ── */}
       {(() => {
-        const now = new Date()
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        const todayStr = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`
+        const utcNow = Date.now()
+        const etOffset = -4 * 60 * 60 * 1000
+        const etMs = utcNow + etOffset
+        const etDate = new Date(etMs)
+        const etHour = etDate.getUTCHours()
+        const matchDay = etHour < 3 ? new Date(etMs - 24 * 60 * 60 * 1000) : etDate
+        const todayStr = `${days[matchDay.getUTCDay()]}, ${months[matchDay.getUTCMonth()]} ${matchDay.getUTCDate()}`
         const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
         if (todayGames.length === 0) return null
         return (
@@ -2129,7 +2131,7 @@ export default function Home() {
                   {results.thirdPlaceOpponents.map((t: any, i: number) => (
                     <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
                       <td style={{ padding: '8px', color: '#e0e6ed' }}>
-                        {t.name}
+                        {flag(t.name)} {t.name}
                         {formatRecord(t.name) && (
                           <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b' }}>({formatRecord(t.name)})</span>
                         )}
@@ -2342,10 +2344,10 @@ export default function Home() {
                           )}
                         </td>
                         <td style={{ padding: '8px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>{t.group}</td>
-                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#60a5fa', fontVariantNumeric: 'tabular-nums' }}>{t.R32.total.toFixed(1)}%</td>
-                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#818cf8', fontVariantNumeric: 'tabular-nums' }}>{t.QF.total.toFixed(1)}%</td>
-                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>{t.SF.total.toFixed(1)}%</td>
-                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 900, color: '#f97316', fontSize: '15px', fontVariantNumeric: 'tabular-nums' }}>{t.Champion.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#60a5fa', fontVariantNumeric: 'tabular-nums' }}>{t.R32.total >= 100 ? '100' : t.R32.total >= 99.95 ? '>99.9' : t.R32.total.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#818cf8', fontVariantNumeric: 'tabular-nums' }}>{t.QF.total >= 100 ? '100' : t.QF.total >= 99.95 ? '>99.9' : t.QF.total.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>{t.SF.total >= 100 ? '100' : t.SF.total >= 99.95 ? '>99.9' : t.SF.total.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 900, color: '#f97316', fontSize: '15px', fontVariantNumeric: 'tabular-nums' }}>{t.Champion >= 100 ? '100' : t.Champion >= 99.95 ? '>99.9' : t.Champion.toFixed(1)}%</td>
                       </tr>
                       {expandedTeam === t.name && (
                         <tr key={`${t.name}-detail`} style={{ background: '#0f172a', borderBottom: '2px solid #1e3a5f' }}>
