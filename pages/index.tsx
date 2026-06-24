@@ -664,6 +664,7 @@ export default function Home() {
       return next
     })
   }
+  const [teamSearch, setTeamSearch] = useState('')
   const hasAutoRunTeam = useRef(false)
   const hasAutoRunVenue = useRef(false)
   const [resultsSource, setResultsSource] = useState<string>('')
@@ -749,6 +750,22 @@ export default function Home() {
     'England': 'ENG', 'Croatia': 'CRO', 'Ghana': 'GHA', 'Panama': 'PAN',
   }
   const abbrev = (name: string) => teamAbbrev[name] || name.slice(0, 3).toUpperCase()
+
+  const teamFlag: Record<string, string> = {
+    'Mexico': '🇲🇽', 'South Africa': '🇿🇦', 'South Korea': '🇰🇷', 'Czechia': '🇨🇿',
+    'Canada': '🇨🇦', 'Bosnia and Herzegovina': '🇧🇦', 'Qatar': '🇶🇦', 'Switzerland': '🇨🇭',
+    'Brazil': '🇧🇷', 'Morocco': '🇲🇦', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Haiti': '🇭🇹',
+    'United States': '🇺🇸', 'Paraguay': '🇵🇾', 'Australia': '🇦🇺', 'Türkiye': '🇹🇷',
+    'Germany': '🇩🇪', 'Ecuador': '🇪🇨', "Côte d'Ivoire": '🇨🇮', 'Curaçao': '🇨🇼',
+    'Netherlands': '🇳🇱', 'Japan': '🇯🇵', 'Tunisia': '🇹🇳', 'Sweden': '🇸🇪',
+    'Belgium': '🇧🇪', 'Egypt': '🇪🇬', 'Iran': '🇮🇷', 'New Zealand': '🇳🇿',
+    'Spain': '🇪🇸', 'Uruguay': '🇺🇾', 'Saudi Arabia': '🇸🇦', 'Cape Verde': '🇨🇻',
+    'France': '🇫🇷', 'Senegal': '🇸🇳', 'Norway': '🇳🇴', 'Iraq': '🇮🇶',
+    'Argentina': '🇦🇷', 'Austria': '🇦🇹', 'Algeria': '🇩🇿', 'Jordan': '🇯🇴',
+    'Portugal': '🇵🇹', 'Colombia': '🇨🇴', 'Uzbekistan': '🇺🇿', 'DR Congo': '🇨🇩',
+    'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croatia': '🇭🇷', 'Ghana': '🇬🇭', 'Panama': '🇵🇦',
+  }
+  const flag = (name: string) => teamFlag[name] || ''
 
   const getMatchOdds = (teamA: string, teamB: string) => {
     const getR = (name: string) => {
@@ -1618,7 +1635,7 @@ export default function Home() {
             return (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
-                {r.name}
+                {flag(r.name)} {r.name}
                 {formatRecord(r.name) && (
                   <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(r.name)})</span>
                 )}
@@ -1651,7 +1668,7 @@ export default function Home() {
           {teams.map((t, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
-                {t.name}
+                {flag(t.name)} {t.name}
                 {formatRecord(t.name) && (
                   <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(t.name)})</span>
                 )}
@@ -1681,7 +1698,7 @@ export default function Home() {
         <tbody>
           {matchProbs.map((m, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-              <td style={{ padding: '8px', color: '#e0e6ed' }}><strong>{m.teamA}</strong> vs {m.teamB}</td>
+              <td style={{ padding: '8px', color: '#e0e6ed' }}><strong>{flag(m.teamA)} {m.teamA}</strong> vs {flag(m.teamB)} {m.teamB}</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#2ecc71', fontWeight: 'bold' }}>{m.pA.toFixed(1)}%</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#94a3b8' }}>{m.pDraw.toFixed(1)}%</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#e74c3c' }}>{m.pB.toFixed(1)}%</td>
@@ -1692,39 +1709,51 @@ export default function Home() {
     </div>
   )
 
-  // ─── Fetch live results on mount ─────────────────────────────
+  // ─── Fetch live results on mount + auto-refresh every 60s ────
   useEffect(() => {
     let cancelled = false
-    fetch('/api/results')
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled || !data?.success || !data?.results) return
-        const incoming = data.results as Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]>
-        for (const [group, matches] of Object.entries(incoming)) {
-          if (!actualGroupResults[group]) actualGroupResults[group] = []
-          for (const m of matches) {
-            const idx = actualGroupResults[group].findIndex(r =>
-              (r.teamA === m.teamA && r.teamB === m.teamB) || (r.teamA === m.teamB && r.teamB === m.teamA)
-            )
-            if (idx >= 0) actualGroupResults[group][idx] = m
-            else actualGroupResults[group].push(m)
+    const fetchResults = () => {
+      fetch('/api/results')
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled || !data?.success || !data?.results) return
+          const incoming = data.results as Record<string, { teamA: string; teamB: string; scoreA: number; scoreB: number }[]>
+          let changed = false
+          for (const [group, matches] of Object.entries(incoming)) {
+            if (!actualGroupResults[group]) actualGroupResults[group] = []
+            for (const m of matches) {
+              const idx = actualGroupResults[group].findIndex(r =>
+                (r.teamA === m.teamA && r.teamB === m.teamB) || (r.teamA === m.teamB && r.teamB === m.teamA)
+              )
+              if (idx >= 0) {
+                if (actualGroupResults[group][idx].scoreA !== m.scoreA || actualGroupResults[group][idx].scoreB !== m.scoreB) changed = true
+                actualGroupResults[group][idx] = m
+              } else {
+                actualGroupResults[group].push(m)
+                changed = true
+              }
+            }
           }
-        }
-        setResultsSource(data.source || 'live')
-        setLiveResultsLoaded(true)
-        setResults(null)
-        setTeamViewResults(null)
-        setVenueViewResults(null)
-        hasAutoRunTeam.current = false
-        hasAutoRunVenue.current = false
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResultsSource('hardcoded')
+          setResultsSource(data.source || 'live')
           setLiveResultsLoaded(true)
-        }
-      })
-    return () => { cancelled = true }
+          if (changed || !liveResultsLoaded) {
+            setResults(null)
+            setTeamViewResults(null)
+            setVenueViewResults(null)
+            hasAutoRunTeam.current = false
+            hasAutoRunVenue.current = false
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setResultsSource('hardcoded')
+            setLiveResultsLoaded(true)
+          }
+        })
+    }
+    fetchResults()
+    const interval = setInterval(fetchResults, 60000)
+    return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
   const stubhubEventIds: Record<number, number> = {
@@ -1806,8 +1835,11 @@ export default function Home() {
 
       {/* ── TODAY BAR ── */}
       {(() => {
-        const todayStr = 'Tue, Jun 23'
-        const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr) || gm.date.startsWith('Mon, Jun 23'))
+        const now = new Date()
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const todayStr = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`
+        const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
         if (todayGames.length === 0) return null
         return (
           <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#111827', borderRadius: '10px', border: '1px solid #1e3a5f' }}>
@@ -1816,19 +1848,20 @@ export default function Home() {
               {todayGames.map(gm => {
                 const result = groupMatchResult(gm)
                 const odds = !result ? getMatchOdds(gm.teamA, gm.teamB) : null
+                const hasFav = favorites.includes(gm.teamA) || favorites.includes(gm.teamB)
                 return (
-                  <div key={gm.matchNum} style={{ flex: '0 0 auto', minWidth: '160px', background: '#1a2332', borderRadius: '8px', padding: '8px 10px', border: '1px solid #2d3748' }}>
+                  <div key={gm.matchNum} style={{ flex: '0 0 auto', minWidth: '160px', background: '#1a2332', borderRadius: '8px', padding: '8px 10px', border: hasFav ? '1px solid #f59e0b' : '1px solid #2d3748', boxShadow: hasFav ? '0 0 8px rgba(245,158,11,0.15)' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <span style={{ fontSize: '11px', color: '#64748b' }}>Group {gm.group}</span>
                       {result ? <span style={{ fontSize: '9px', background: '#2ecc71', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 'bold' }}>FT</span>
                         : <span style={{ fontSize: '9px', color: '#f59e0b' }}>{gm.date.split('•')[1]?.trim()}</span>}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: 'bold' }}>
-                      <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamA)}</span>
+                      <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer' }}>{flag(gm.teamA)} {abbrev(gm.teamA)}</span>
                       {result
                         ? <span style={{ color: '#2ecc71', fontSize: '15px' }}>{result.scoreA} – {result.scoreB}</span>
                         : <span style={{ color: '#64748b', fontSize: '11px' }}>vs</span>}
-                      <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)}</span>
+                      <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)} {flag(gm.teamB)}</span>
                     </div>
                     {odds && <div style={{ marginTop: '4px' }}><OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} /></div>}
                   </div>
@@ -2143,7 +2176,7 @@ export default function Home() {
                       borderRadius: '6px', marginBottom: '6px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</span>
                       <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -2158,7 +2191,7 @@ export default function Home() {
                       borderRadius: '6px', marginBottom: '6px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</span>
                       <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -2203,7 +2236,7 @@ export default function Home() {
                     background: 'rgba(255,255,255,0.1)', padding: '10px 15px',
                     borderRadius: '6px', minWidth: '120px',
                   }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
                   </div>
                 ))}
@@ -2247,13 +2280,28 @@ export default function Home() {
           )}
 
           {teamViewResults && (() => {
-            const sorted = [...teamViewResults].sort((a: any, b: any) => {
+            const filtered = teamSearch
+              ? teamViewResults.filter((t: any) => t.name.toLowerCase().includes(teamSearch.toLowerCase()) || (teamAbbrev[t.name] || '').toLowerCase().includes(teamSearch.toLowerCase()))
+              : teamViewResults
+            const sorted = [...filtered].sort((a: any, b: any) => {
               const fa = favorites.includes(a.name) ? 0 : 1
               const fb = favorites.includes(b.name) ? 0 : 1
               return fa - fb
             })
             return (
-            <div style={{ marginTop: '10px', overflowX: 'auto' }}>
+            <div style={{ marginTop: '10px' }}>
+              <input
+                type="text"
+                placeholder="Search teams..."
+                value={teamSearch}
+                onChange={e => setTeamSearch(e.target.value)}
+                style={{
+                  width: '100%', maxWidth: '300px', padding: '8px 12px', marginBottom: '10px',
+                  background: '#111827', border: '1px solid #1e3a5f', borderRadius: '6px',
+                  color: '#e0e6ed', fontSize: '13px', outline: 'none',
+                }}
+              />
+              <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '10px', overflow: 'hidden', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ background: '#1e3a5f' }}>
@@ -2286,7 +2334,7 @@ export default function Home() {
                         </td>
                         <td style={{ padding: '8px 6px', fontWeight: 'bold', position: 'sticky', left: 28, background: bg, zIndex: 1, color: '#e0e6ed' }}>
                           <span style={{ color: expandedTeam === t.name ? '#60a5fa' : '#94a3b8', marginRight: '5px', fontSize: '9px', display: 'inline-block', transition: 'transform 0.15s', transform: expandedTeam === t.name ? 'rotate(90deg)' : 'none' }}>&#9654;</span>
-                          {t.name}
+                          {flag(t.name)} {t.name}
                           {formatRecord(t.name) && (
                             <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
                               ({formatRecord(t.name)})
@@ -2317,7 +2365,7 @@ export default function Home() {
                                       return (
                                         <div key={gm.matchNum} style={{ background: result ? '#1a2332' : '#111827', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#2d3748' : '#1e3a5f'}`, fontSize: '12px' }}>
                                           <div style={{ fontWeight: 'bold', color: '#e0e6ed' }}>
-                                            vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', color: '#60a5fa' }}>{opp}</span>
+                                            vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', color: '#60a5fa' }}>{flag(opp)} {opp}</span>
                                           </div>
                                           <div style={{ color: '#64748b', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
                                           {result ? (() => {
@@ -2391,6 +2439,7 @@ export default function Home() {
                   )})}
                 </tbody>
               </table>
+              </div>
 
               <div style={{ marginTop: '20px', fontSize: '12px', color: '#64748b' }}>
                 Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
@@ -2484,7 +2533,7 @@ export default function Home() {
                                 opacity: isElim ? 0.6 : 1,
                               }}>
                                 <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', color: '#e0e6ed' }}>
-                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{t.name}</span>
+                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(t.name)} {t.name}</span>
                                   {t.played > 0 && <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({t.w}-{t.d}-{t.l})</span>}
                                 </td>
                                 <td style={td(true)}>{t.pts}</td>
@@ -2515,7 +2564,7 @@ export default function Home() {
                       {groupGames.map(gm => {
                         const result = groupMatchResult(gm)
                         const tLink = (name: string, bold: boolean) => (
-                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px', color: '#e0e6ed' }}>{name}</span>
+                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px', color: '#e0e6ed' }}>{flag(name)} {name}</span>
                         )
                         if (result) return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '2px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -2637,7 +2686,7 @@ export default function Home() {
                 textUnderlineOffset: '2px',
               }}
             >
-              {text}
+              {rawName ? `${flag(rawName)} ` : ''}{text}
             </div>
           )
 
@@ -2823,13 +2872,13 @@ export default function Home() {
                           </div>
                           <div style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold', color: '#e0e6ed' }}>
-                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamA)} {gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
                               {result ? (
                                 <span style={{ color: '#2ecc71', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
                               ) : (
                                 <span style={{ color: '#64748b', fontSize: '14px' }}>vs</span>
                               )}
-                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamB)} {gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
                             </div>
                             <div style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
                               {gm.date}
@@ -2910,7 +2959,7 @@ export default function Home() {
                                   </div>
                                   {visibleA.map((t: any) => (
                                     <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{t.name}</span>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
@@ -2927,7 +2976,7 @@ export default function Home() {
                                   </div>
                                   {visibleB.map((t: any) => (
                                     <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{t.name}</span>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
