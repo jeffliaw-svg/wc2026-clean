@@ -751,22 +751,6 @@ export default function Home() {
   }
   const abbrev = (name: string) => teamAbbrev[name] || name.slice(0, 3).toUpperCase()
 
-  const teamFlag: Record<string, string> = {
-    'Mexico': '🇲🇽', 'South Africa': '🇿🇦', 'South Korea': '🇰🇷', 'Czechia': '🇨🇿',
-    'Canada': '🇨🇦', 'Bosnia and Herzegovina': '🇧🇦', 'Qatar': '🇶🇦', 'Switzerland': '🇨🇭',
-    'Brazil': '🇧🇷', 'Morocco': '🇲🇦', 'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Haiti': '🇭🇹',
-    'United States': '🇺🇸', 'Paraguay': '🇵🇾', 'Australia': '🇦🇺', 'Türkiye': '🇹🇷',
-    'Germany': '🇩🇪', 'Ecuador': '🇪🇨', "Côte d'Ivoire": '🇨🇮', 'Curaçao': '🇨🇼',
-    'Netherlands': '🇳🇱', 'Japan': '🇯🇵', 'Tunisia': '🇹🇳', 'Sweden': '🇸🇪',
-    'Belgium': '🇧🇪', 'Egypt': '🇪🇬', 'Iran': '🇮🇷', 'New Zealand': '🇳🇿',
-    'Spain': '🇪🇸', 'Uruguay': '🇺🇾', 'Saudi Arabia': '🇸🇦', 'Cape Verde': '🇨🇻',
-    'France': '🇫🇷', 'Senegal': '🇸🇳', 'Norway': '🇳🇴', 'Iraq': '🇮🇶',
-    'Argentina': '🇦🇷', 'Austria': '🇦🇹', 'Algeria': '🇩🇿', 'Jordan': '🇯🇴',
-    'Portugal': '🇵🇹', 'Colombia': '🇨🇴', 'Uzbekistan': '🇺🇿', 'DR Congo': '🇨🇩',
-    'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Croatia': '🇭🇷', 'Ghana': '🇬🇭', 'Panama': '🇵🇦',
-  }
-  const flag = (name: string) => teamFlag[name] || ''
-
   const getMatchOdds = (teamA: string, teamB: string) => {
     const getR = (name: string) => {
       if (liveRatings[name]) return liveRatings[name]
@@ -1635,7 +1619,7 @@ export default function Home() {
             return (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
-                {flag(r.name)} {r.name}
+                {r.name}
                 {formatRecord(r.name) && (
                   <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(r.name)})</span>
                 )}
@@ -1668,7 +1652,7 @@ export default function Home() {
           {teams.map((t, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
               <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
-                {flag(t.name)} {t.name}
+                {t.name}
                 {formatRecord(t.name) && (
                   <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(t.name)})</span>
                 )}
@@ -1698,7 +1682,7 @@ export default function Home() {
         <tbody>
           {matchProbs.map((m, i) => (
             <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-              <td style={{ padding: '8px', color: '#e0e6ed' }}><strong>{flag(m.teamA)} {m.teamA}</strong> vs {flag(m.teamB)} {m.teamB}</td>
+              <td style={{ padding: '8px', color: '#e0e6ed' }}><strong>{m.teamA}</strong> vs {m.teamB}</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#2ecc71', fontWeight: 'bold' }}>{m.pA.toFixed(1)}%</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#94a3b8' }}>{m.pDraw.toFixed(1)}%</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#e74c3c' }}>{m.pB.toFixed(1)}%</td>
@@ -1835,10 +1819,15 @@ export default function Home() {
 
       {/* ── TODAY BAR ── */}
       {(() => {
-        const now = new Date()
         const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        const todayStr = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`
+        const utcNow = Date.now()
+        const etOffset = -4 * 60 * 60 * 1000
+        const etMs = utcNow + etOffset
+        const etDate = new Date(etMs)
+        const etHour = etDate.getUTCHours()
+        const matchDay = etHour < 3 ? new Date(etMs - 24 * 60 * 60 * 1000) : etDate
+        const todayStr = `${days[matchDay.getUTCDay()]}, ${months[matchDay.getUTCMonth()]} ${matchDay.getUTCDate()}`
         const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
         if (todayGames.length === 0) return null
         return (
@@ -1857,11 +1846,11 @@ export default function Home() {
                         : <span style={{ fontSize: '9px', color: '#f59e0b' }}>{gm.date.split('•')[1]?.trim()}</span>}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', fontWeight: 'bold' }}>
-                      <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer' }}>{flag(gm.teamA)} {abbrev(gm.teamA)}</span>
+                      <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamA)}</span>
                       {result
                         ? <span style={{ color: '#2ecc71', fontSize: '15px' }}>{result.scoreA} – {result.scoreB}</span>
                         : <span style={{ color: '#64748b', fontSize: '11px' }}>vs</span>}
-                      <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)} {flag(gm.teamB)}</span>
+                      <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)}</span>
                     </div>
                     {odds && <div style={{ marginTop: '4px' }}><OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} /></div>}
                   </div>
@@ -2176,7 +2165,7 @@ export default function Home() {
                       borderRadius: '6px', marginBottom: '6px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
                       <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -2191,7 +2180,7 @@ export default function Home() {
                       borderRadius: '6px', marginBottom: '6px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
-                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</span>
+                      <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</span>
                       <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{t.pct.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -2236,7 +2225,7 @@ export default function Home() {
                     background: 'rgba(255,255,255,0.1)', padding: '10px 15px',
                     borderRadius: '6px', minWidth: '120px',
                   }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{flag(t.name)} {t.name}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{t.name}</div>
                     <div style={{ fontSize: '22px', fontWeight: 'bold', marginTop: '4px' }}>{t.pct.toFixed(1)}%</div>
                   </div>
                 ))}
@@ -2334,7 +2323,7 @@ export default function Home() {
                         </td>
                         <td style={{ padding: '8px 6px', fontWeight: 'bold', position: 'sticky', left: 28, background: bg, zIndex: 1, color: '#e0e6ed' }}>
                           <span style={{ color: expandedTeam === t.name ? '#60a5fa' : '#94a3b8', marginRight: '5px', fontSize: '9px', display: 'inline-block', transition: 'transform 0.15s', transform: expandedTeam === t.name ? 'rotate(90deg)' : 'none' }}>&#9654;</span>
-                          {flag(t.name)} {t.name}
+                          {t.name}
                           {formatRecord(t.name) && (
                             <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
                               ({formatRecord(t.name)})
@@ -2365,7 +2354,7 @@ export default function Home() {
                                       return (
                                         <div key={gm.matchNum} style={{ background: result ? '#1a2332' : '#111827', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#2d3748' : '#1e3a5f'}`, fontSize: '12px' }}>
                                           <div style={{ fontWeight: 'bold', color: '#e0e6ed' }}>
-                                            vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', color: '#60a5fa' }}>{flag(opp)} {opp}</span>
+                                            vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', color: '#60a5fa' }}>{opp}</span>
                                           </div>
                                           <div style={{ color: '#64748b', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
                                           {result ? (() => {
@@ -2533,7 +2522,7 @@ export default function Home() {
                                 opacity: isElim ? 0.6 : 1,
                               }}>
                                 <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', color: '#e0e6ed' }}>
-                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(t.name)} {t.name}</span>
+                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{t.name}</span>
                                   {t.played > 0 && <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({t.w}-{t.d}-{t.l})</span>}
                                 </td>
                                 <td style={td(true)}>{t.pts}</td>
@@ -2564,7 +2553,7 @@ export default function Home() {
                       {groupGames.map(gm => {
                         const result = groupMatchResult(gm)
                         const tLink = (name: string, bold: boolean) => (
-                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px', color: '#e0e6ed' }}>{flag(name)} {name}</span>
+                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px', color: '#e0e6ed' }}>{name}</span>
                         )
                         if (result) return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '2px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -2686,7 +2675,7 @@ export default function Home() {
                 textUnderlineOffset: '2px',
               }}
             >
-              {rawName ? `${flag(rawName)} ` : ''}{text}
+              {text}
             </div>
           )
 
@@ -2872,13 +2861,13 @@ export default function Home() {
                           </div>
                           <div style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold', color: '#e0e6ed' }}>
-                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamA)} {gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
                               {result ? (
                                 <span style={{ color: '#2ecc71', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
                               ) : (
                                 <span style={{ color: '#64748b', fontSize: '14px' }}>vs</span>
                               )}
-                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamB)} {gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
                             </div>
                             <div style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
                               {gm.date}
@@ -2959,7 +2948,7 @@ export default function Home() {
                                   </div>
                                   {visibleA.map((t: any) => (
                                     <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
@@ -2976,7 +2965,7 @@ export default function Home() {
                                   </div>
                                   {visibleB.map((t: any) => (
                                     <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
