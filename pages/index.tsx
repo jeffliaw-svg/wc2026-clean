@@ -1381,13 +1381,44 @@ export default function Home() {
         }
       }
 
+      // Detect teams that have mathematically clinched top-2 in their group
+      const clinched = new Set<string>()
+      for (const g of groups) {
+        const actuals = actualGroupResults[g] || []
+        const teams = groupTeams[g]
+        const pts: Record<string, number> = {}
+        const played: Record<string, Set<string>> = {}
+        for (const t of teams) { pts[t.name] = 0; played[t.name] = new Set() }
+        for (const a of actuals) {
+          if (!(a.teamA in pts) || !(a.teamB in pts)) continue
+          played[a.teamA].add(a.teamB); played[a.teamB].add(a.teamA)
+          if (a.scoreA > a.scoreB) pts[a.teamA] += 3
+          else if (a.scoreB > a.scoreA) pts[a.teamB] += 3
+          else { pts[a.teamA] += 1; pts[a.teamB] += 1 }
+        }
+        for (const t of teams) {
+          const myPts = pts[t.name]
+          const remaining = teams.filter(o => o.name !== t.name && !played[t.name].has(o.name))
+          const worstCase = myPts // lose all remaining
+          // Count max teams that could finish above this team
+          const others = teams.filter(o => o.name !== t.name)
+          let canFinishAbove = 0
+          for (const o of others) {
+            const oRemaining = teams.filter(x => x.name !== o.name && !played[o.name].has(x.name))
+            const bestCase = pts[o.name] + oRemaining.length * 3
+            if (bestCase > worstCase) canFinishAbove++
+          }
+          if (canFinishAbove <= 1) clinched.add(t.name)
+        }
+      }
+
       // Convert trackers to result rows
-      const roundData = (rd: Record<string, number>) => {
+      const roundData = (rd: Record<string, number>, isClinched?: boolean) => {
         const total = Object.values(rd).reduce((a, b) => a + b, 0)
         const venues = Object.entries(rd)
           .map(([venue, count]) => ({ venue, pct: (count / iterations) * 100 }))
           .sort((a, b) => b.pct - a.pct)
-        return { total: (total / iterations) * 100, venues }
+        return { total: isClinched ? 100 : (total / iterations) * 100, venues }
       }
 
       const rows = Object.entries(tracker).map(([name, stats]) => {
@@ -1395,7 +1426,7 @@ export default function Home() {
         const group = Object.entries(groupTeams).find(([, teams]) => teams.some(t => t.name === name))?.[0] || '?'
         return {
           name, rating: teamRating, group,
-          R32: roundData(stats.R32), R16: roundData(stats.R16),
+          R32: roundData(stats.R32, clinched.has(name)), R16: roundData(stats.R16),
           QF: roundData(stats.QF), SF: roundData(stats.SF),
           Final: roundData(stats.Final),
           Champion: (stats.Champion / iterations) * 100,
