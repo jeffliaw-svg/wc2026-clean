@@ -1863,7 +1863,6 @@ export default function Home() {
 
       {/* ── TODAY BAR ── */}
       {(() => {
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
         const utcNow = Date.now()
         const etOffset = -4 * 60 * 60 * 1000
@@ -1871,12 +1870,12 @@ export default function Home() {
         const etDate = new Date(etMs)
         const etHour = etDate.getUTCHours()
         const matchDay = etHour < 3 ? new Date(etMs - 24 * 60 * 60 * 1000) : etDate
-        const todayStr = `${days[matchDay.getUTCDay()]}, ${months[matchDay.getUTCMonth()]} ${matchDay.getUTCDate()}`
-        const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
+        const todayDateStr = `${months[matchDay.getUTCMonth()]} ${matchDay.getUTCDate()}`
+        const todayGames = groupMatches.filter(gm => gm.date.includes(todayDateStr))
         if (todayGames.length === 0) return null
         return (
           <div style={{ marginBottom: '14px', padding: '12px 14px', background: '#f0f8ff', borderRadius: '10px', border: '1px solid #bdd8f0' }}>
-            <div style={{ fontSize: '13px', color: '#003366', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>&#9917; Today&apos;s Matches &mdash; {todayStr}</div>
+            <div style={{ fontSize: '13px', color: '#003366', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>&#9917; Today&apos;s Matches &mdash; {todayDateStr}</div>
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
               {todayGames.map(gm => {
                 const result = groupMatchResult(gm)
