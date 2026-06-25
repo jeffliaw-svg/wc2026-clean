@@ -1875,8 +1875,8 @@ export default function Home() {
         const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
         if (todayGames.length === 0) return null
         return (
-          <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Today&apos;s Matches</div>
+          <div style={{ marginBottom: '14px', padding: '12px 14px', background: '#f0f8ff', borderRadius: '10px', border: '1px solid #bdd8f0' }}>
+            <div style={{ fontSize: '13px', color: '#003366', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>&#9917; Today&apos;s Matches &mdash; {todayStr}</div>
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
               {todayGames.map(gm => {
                 const result = groupMatchResult(gm)
