@@ -1811,6 +1811,31 @@ export default function Home() {
     return 'https://www.stubhub.com/world-cup-tickets/grouping/45410'
   }
 
+  const kalshiCode: Record<string, string> = {
+    'Mexico': 'mex', 'South Africa': 'rsa', 'South Korea': 'kor', 'Czechia': 'cze',
+    'Canada': 'can', 'Bosnia and Herzegovina': 'bih', 'Qatar': 'qat', 'Switzerland': 'sui',
+    'Brazil': 'bra', 'Morocco': 'mar', 'Scotland': 'sco', 'Haiti': 'hti',
+    'United States': 'usa', 'Paraguay': 'par', 'Australia': 'aus', 'Türkiye': 'tur',
+    'Germany': 'ger', 'Ecuador': 'ecu', "Côte d'Ivoire": 'civ', 'Curaçao': 'cuw',
+    'Netherlands': 'ned', 'Japan': 'jpn', 'Tunisia': 'tun', 'Sweden': 'swe',
+    'Belgium': 'bel', 'Egypt': 'egy', 'Iran': 'iri', 'New Zealand': 'nzl',
+    'Spain': 'esp', 'Uruguay': 'uru', 'Saudi Arabia': 'ksa', 'Cape Verde': 'cpv',
+    'France': 'fra', 'Senegal': 'sen', 'Norway': 'nor', 'Iraq': 'irq',
+    'Argentina': 'arg', 'Austria': 'aut', 'Algeria': 'dza', 'Jordan': 'jor',
+    'Portugal': 'por', 'Colombia': 'col', 'Uzbekistan': 'uzb', 'DR Congo': 'cod',
+    'England': 'eng', 'Croatia': 'cro', 'Ghana': 'gha', 'Panama': 'pan',
+  }
+  const kalshiMatchUrl = (gm: GroupMatch) => {
+    const dm = gm.date.match(/(\w{3})\s+(\d+)/)
+    if (!dm) return null
+    const mon = dm[1].toLowerCase()
+    const day = dm[2]
+    const cA = kalshiCode[gm.teamA]
+    const cB = kalshiCode[gm.teamB]
+    if (!cA || !cB) return null
+    return `https://kalshi.com/markets/kxwcgame/world-cup-game/kxwcgame-26${mon}${day}${cA}${cB}`
+  }
+
   // ─── Auto-run simulations ────────────────────────────────────
   useEffect(() => {
     if (viewMode === 'match' && !results && !calculating && canSimulate) {
@@ -1896,6 +1921,10 @@ export default function Home() {
                       <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)} {flag(gm.teamB)}</span>
                     </div>
                     {odds && <div style={{ marginTop: '4px' }}><OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} /></div>}
+                    {!result && <div style={{ marginTop: '4px', display: 'flex', gap: '8px', justifyContent: 'center', fontSize: '10px' }}>
+                      <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                      {kalshiMatchUrl(gm) && <a href={kalshiMatchUrl(gm)!} target="_blank" rel="noopener noreferrer" style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 'bold' }}>Wager</a>}
+                    </div>}
                   </div>
                 )
               })}
@@ -2420,7 +2449,10 @@ export default function Home() {
                                             <div>
                                               <div style={{ color: '#2ecc71', marginTop: '2px', fontSize: '11px' }}>{gm.date}</div>
                                               <div style={{ marginTop: '4px' }}><OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} /></div>
-                                              <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', fontSize: '11px', textDecoration: 'none', marginTop: '4px', display: 'inline-block', fontWeight: 'bold' }}>Buy Tickets</a>
+                                              <div style={{ marginTop: '4px', display: 'flex', gap: '8px' }}>
+                                                <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                                                {kalshiMatchUrl(gm) && <a href={kalshiMatchUrl(gm)!} target="_blank" rel="noopener noreferrer" style={{ color: '#8b5cf6', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Wager</a>}
+                                              </div>
                                             </div>
                                             )
                                           })()}
@@ -2627,6 +2659,7 @@ export default function Home() {
                                     <div style={{ textAlign: 'center', color: '#888', fontSize: '10px' }}>
                                       {venueCity(gm.venue)} &bull; {gm.date.split('•')[1]?.trim()}
                                       {' · '}<a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                                      {kalshiMatchUrl(gm) && <>{' · '}<a href={kalshiMatchUrl(gm)!} target="_blank" rel="noopener noreferrer" style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 'bold' }}>Wager</a></>}
                                     </div>
                                   </div>
                                 )
@@ -2948,8 +2981,9 @@ export default function Home() {
                               return (
                                 <div style={{ marginTop: '6px' }}>
                                   <OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} />
-                                  <div style={{ textAlign: 'center', marginTop: '4px' }}>
-                                    <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Buy Tickets</a>
+                                  <div style={{ textAlign: 'center', marginTop: '4px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                    <a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                                    {kalshiMatchUrl(gm) && <a href={kalshiMatchUrl(gm)!} target="_blank" rel="noopener noreferrer" style={{ color: '#8b5cf6', fontSize: '11px', textDecoration: 'none', fontWeight: 'bold' }}>Wager</a>}
                                   </div>
                                 </div>
                               )
