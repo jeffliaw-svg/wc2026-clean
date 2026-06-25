@@ -1651,9 +1651,9 @@ export default function Home() {
     return (
     <div>
       <h4 style={{ color: '#60a5fa', marginBottom: '10px', fontSize: '18px' }}>{label}</h4>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '8px', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: '8px', overflow: 'hidden' }}>
         <thead>
-          <tr style={{ background: '#1e3a5f', color: '#e0e6ed' }}>
+          <tr style={{ background: '#f0f4f8', color: '#1a1a1a' }}>
             <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px' }}>FIFA Pts</th>
             <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', ...(highlightCol === '1st' ? { background: '#1a4a7a' } : {}) }}>P(1st)</th>
@@ -1664,18 +1664,18 @@ export default function Home() {
           {teamResults.map((r, i) => {
             const val = highlightCol === '1st' ? r.first : r.second
             return (
-            <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
+            <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f5f5f5' }}>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#1a1a1a' }}>
                 {flag(r.name)} {r.name}
                 {formatRecord(r.name) && (
-                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(r.name)})</span>
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>({formatRecord(r.name)})</span>
                 )}
               </td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#64748b' }}>{r.rating.toFixed(0)}</td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', color: '#e0e6ed', ...(highlightCol === '1st' ? { fontWeight: 'bold', background: pctBg(r.first, maxVal) } : {}) }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: '12px', color: '#888' }}>{r.rating.toFixed(0)}</td>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '1st' ? '15px' : '14px', color: '#1a1a1a', ...(highlightCol === '1st' ? { fontWeight: 'bold', background: pctBg(r.first, maxVal) } : {}) }}>
                 {r.first.toFixed(1)}%
               </td>
-              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', color: '#e0e6ed', ...(highlightCol === '2nd' ? { fontWeight: 'bold', background: pctBg(val, maxVal) } : {}) }}>
+              <td style={{ padding: '10px', textAlign: 'right', fontSize: highlightCol === '2nd' ? '15px' : '14px', color: '#1a1a1a', ...(highlightCol === '2nd' ? { fontWeight: 'bold', background: pctBg(val, maxVal) } : {}) }}>
                 {r.second.toFixed(1)}%
               </td>
             </tr>
@@ -1688,20 +1688,20 @@ export default function Home() {
   const renderAdvanceTable = (label: string, teams: { name: string; pct: number }[], color: string = '#60a5fa') => (
     <div>
       <h4 style={{ color, marginBottom: '10px', fontSize: '16px' }}>{label}</h4>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '8px', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: '8px', overflow: 'hidden' }}>
         <thead>
-          <tr style={{ background: '#1e3a5f', color: '#e0e6ed' }}>
+          <tr style={{ background: '#f0f4f8', color: '#1a1a1a' }}>
             <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>Team</th>
-            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: 'rgba(255,255,255,0.08)' }}>P(Advance)</th>
+            <th style={{ padding: '10px', textAlign: 'right', fontSize: '13px', background: 'rgba(0,0,0,0.03)' }}>P(Advance)</th>
           </tr>
         </thead>
         <tbody>
           {teams.map((t, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#e0e6ed' }}>
+            <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f5f5f5' }}>
+              <td style={{ padding: '10px', fontWeight: 'bold', fontSize: '14px', color: '#1a1a1a' }}>
                 {flag(t.name)} {t.name}
                 {formatRecord(t.name) && (
-                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>({formatRecord(t.name)})</span>
+                  <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>({formatRecord(t.name)})</span>
                 )}
               </td>
               <td style={{ padding: '10px', textAlign: 'right', color, fontWeight: 'bold', fontSize: '15px', background: i % 2 === 0 ? 'rgba(96,165,250,0.08)' : 'rgba(96,165,250,0.12)' }}>
@@ -1717,9 +1717,9 @@ export default function Home() {
   const renderMatchDetail = (label: string, matchProbs: MatchProb[]) => (
     <div>
       <h4 style={{ color: '#60a5fa', marginBottom: '10px', fontSize: '16px' }}>{label} &mdash; Individual Matches</h4>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
         <thead>
-          <tr style={{ background: '#1e3a5f', color: '#e0e6ed' }}>
+          <tr style={{ background: '#f0f4f8', color: '#1a1a1a' }}>
             <th style={{ padding: '8px', textAlign: 'left' }}>Match</th>
             <th style={{ padding: '8px', textAlign: 'right' }}>Win</th>
             <th style={{ padding: '8px', textAlign: 'right' }}>Draw</th>
@@ -1728,10 +1728,10 @@ export default function Home() {
         </thead>
         <tbody>
           {matchProbs.map((m, i) => (
-            <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-              <td style={{ padding: '8px', color: '#e0e6ed' }}><strong>{flag(m.teamA)} {m.teamA}</strong> vs {flag(m.teamB)} {m.teamB}</td>
+            <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f5f5f5' }}>
+              <td style={{ padding: '8px', color: '#1a1a1a' }}><strong>{flag(m.teamA)} {m.teamA}</strong> vs {flag(m.teamB)} {m.teamB}</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#2ecc71', fontWeight: 'bold' }}>{m.pA.toFixed(1)}%</td>
-              <td style={{ padding: '8px', textAlign: 'right', color: '#94a3b8' }}>{m.pDraw.toFixed(1)}%</td>
+              <td style={{ padding: '8px', textAlign: 'right', color: '#888' }}>{m.pDraw.toFixed(1)}%</td>
               <td style={{ padding: '8px', textAlign: 'right', color: '#e74c3c' }}>{m.pB.toFixed(1)}%</td>
             </tr>
           ))}
@@ -1839,17 +1839,17 @@ export default function Home() {
   const otherMatches = grouped.filter(([city]) => !city.includes('Dallas'))
 
   return (
-    <div style={{ padding: '16px 16px 80px 16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui', color: '#e0e6ed', minHeight: '100vh' }}>
+    <div style={{ padding: '16px 16px 80px 16px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui', color: '#1a1a1a', minHeight: '100vh' }}>
       <Head>
         <title>WC 2026 Match Tracker</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <style jsx global>{`
-        body { background: #0a1628; color: #e0e6ed; margin: 0; }
+        body { background: #ffffff; color: #1a1a1a; margin: 0; }
         ::selection { background: #1a5276; }
         @media (max-width: 767px) {
-          .wc-tabs { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; z-index: 100 !important; border-radius: 0 !important; margin: 0 !important; border-top: 1px solid #1e3a5f !important; }
-          .wc-tabs button { border-radius: 0 !important; border: none !important; border-right: 1px solid #1e3a5f !important; padding: 14px 0 !important; font-size: 13px !important; }
+          .wc-tabs { position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; top: auto !important; z-index: 100 !important; border-radius: 0 !important; margin: 0 !important; border-top: 1px solid #e2e8f0 !important; }
+          .wc-tabs button { border-radius: 0 !important; border: none !important; border-right: 1px solid #e2e8f0 !important; padding: 14px 0 !important; font-size: 13px !important; }
           .wc-tabs button:last-child { border-right: none !important; }
         }
       `}</style>
@@ -1857,7 +1857,7 @@ export default function Home() {
       <h1 style={{ color: '#60a5fa', fontSize: '24px', marginBottom: '4px', letterSpacing: '-0.5px' }}>
         2026 World Cup
       </h1>
-      <p style={{ color: '#64748b', fontSize: '13px', marginTop: 0, marginBottom: '12px' }}>
+      <p style={{ color: '#888', fontSize: '13px', marginTop: 0, marginBottom: '12px' }}>
         Poisson simulation &bull; 10,000 iterations &bull; Live results
       </p>
 
@@ -1875,7 +1875,7 @@ export default function Home() {
         const todayGames = groupMatches.filter(gm => gm.date.startsWith(todayStr))
         if (todayGames.length === 0) return null
         return (
-          <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#111827', borderRadius: '10px', border: '1px solid #1e3a5f' }}>
+          <div style={{ marginBottom: '14px', padding: '10px 12px', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Today&apos;s Matches</div>
             <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
               {todayGames.map(gm => {
@@ -1883,9 +1883,9 @@ export default function Home() {
                 const odds = !result ? getMatchOdds(gm.teamA, gm.teamB) : null
                 const hasFav = favorites.includes(gm.teamA) || favorites.includes(gm.teamB)
                 return (
-                  <div key={gm.matchNum} style={{ flex: '0 0 auto', minWidth: '160px', background: '#1a2332', borderRadius: '8px', padding: '8px 10px', border: hasFav ? '1px solid #f59e0b' : '1px solid #2d3748', boxShadow: hasFav ? '0 0 8px rgba(245,158,11,0.15)' : 'none' }}>
+                  <div key={gm.matchNum} style={{ flex: '0 0 auto', minWidth: '160px', background: '#f0f8ff', borderRadius: '8px', padding: '8px 10px', border: hasFav ? '1px solid #f59e0b' : '1px solid #e2e8f0', boxShadow: hasFav ? '0 0 8px rgba(245,158,11,0.15)' : 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>Group {gm.group}</span>
+                      <span style={{ fontSize: '11px', color: '#888' }}>Group {gm.group}</span>
                       {result ? <span style={{ fontSize: '9px', background: '#2ecc71', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 'bold' }}>FT</span>
                         : <span style={{ fontSize: '9px', color: '#f59e0b' }}>{gm.date.split('•')[1]?.trim()}</span>}
                     </div>
@@ -1893,7 +1893,7 @@ export default function Home() {
                       <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer' }}>{flag(gm.teamA)} {abbrev(gm.teamA)}</span>
                       {result
                         ? <span style={{ color: '#2ecc71', fontSize: '15px' }}>{result.scoreA} – {result.scoreB}</span>
-                        : <span style={{ color: '#64748b', fontSize: '11px' }}>vs</span>}
+                        : <span style={{ color: '#888', fontSize: '11px' }}>vs</span>}
                       <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer' }}>{abbrev(gm.teamB)} {flag(gm.teamB)}</span>
                     </div>
                     {odds && <div style={{ marginTop: '4px' }}><OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} /></div>}
@@ -1918,10 +1918,10 @@ export default function Home() {
             onClick={() => setViewMode(tab.key)}
             style={{
               flex: 1, padding: '10px 0', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer',
-              background: viewMode === tab.key ? '#1e3a5f' : '#111827',
-              color: viewMode === tab.key ? '#60a5fa' : '#64748b',
-              border: '1px solid #1e3a5f',
-              borderLeft: i > 0 ? 'none' : '1px solid #1e3a5f',
+              background: viewMode === tab.key ? '#003366' : '#ffffff',
+              color: viewMode === tab.key ? 'white' : '#555',
+              border: '1px solid #e2e8f0',
+              borderLeft: i > 0 ? 'none' : '1px solid #e2e8f0',
               borderRadius: i === 0 ? '8px 0 0 8px' : i === arr.length - 1 ? '0 8px 8px 0' : '0',
             }}
           >
@@ -1945,9 +1945,9 @@ export default function Home() {
             }}
             style={{
               padding: '8px 16px',
-              background: selectedRound === round ? roundColor[round] : '#111827',
-              color: selectedRound === round ? 'white' : '#94a3b8',
-              border: `2px solid ${selectedRound === round ? roundColor[round] : '#1e3a5f'}`,
+              background: selectedRound === round ? roundColor[round] : '#ffffff',
+              color: selectedRound === round ? 'white' : '#888',
+              border: `2px solid ${selectedRound === round ? roundColor[round] : '#e2e8f0'}`,
               borderRadius: '6px',
               cursor: 'pointer',
               fontSize: '13px',
@@ -1974,9 +1974,9 @@ export default function Home() {
                   onClick={() => { setSelectedMatch(m.matchNum); setResults(null); setShowDetail(false) }}
                   style={{
                     padding: '8px 10px',
-                    background: selectedMatch === m.matchNum ? '#1e3a5f' : '#111827',
-                    color: selectedMatch === m.matchNum ? '#60a5fa' : '#94a3b8',
-                    border: `2px solid ${selectedMatch === m.matchNum ? '#60a5fa' : '#1e3a5f'}`,
+                    background: selectedMatch === m.matchNum ? '#003366' : '#ffffff',
+                    color: selectedMatch === m.matchNum ? 'white' : '#888',
+                    border: `2px solid ${selectedMatch === m.matchNum ? '#003366' : '#e2e8f0'}`,
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontSize: '12px',
@@ -1997,17 +1997,17 @@ export default function Home() {
         {/* Toggle for other locations */}
         {otherMatches.length > 0 && (
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#94a3b8' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#888' }}>
               <div
                 onClick={() => setShowOtherLocations(!showOtherLocations)}
                 style={{
                   width: '40px', height: '22px', borderRadius: '11px',
-                  background: showOtherLocations ? '#1e3a5f' : '#334155',
+                  background: showOtherLocations ? '#003366' : '#ccc',
                   position: 'relative', transition: 'background 0.2s', cursor: 'pointer',
                 }}
               >
                 <div style={{
-                  width: '18px', height: '18px', borderRadius: '50%', background: '#e0e6ed',
+                  width: '18px', height: '18px', borderRadius: '50%', background: '#1a1a1a',
                   position: 'absolute', top: '2px',
                   left: showOtherLocations ? '20px' : '2px',
                   transition: 'left 0.2s',
@@ -2024,7 +2024,7 @@ export default function Home() {
         {/* Other locations (hidden by default) */}
         {showOtherLocations && otherMatches.map(([city, matches]) => (
           <div key={city} style={{ marginBottom: '12px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.05em' }}>
               {city}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '8px' }}>
@@ -2034,9 +2034,9 @@ export default function Home() {
                   onClick={() => { setSelectedMatch(m.matchNum); setResults(null); setShowDetail(false) }}
                   style={{
                     padding: '8px 10px',
-                    background: selectedMatch === m.matchNum ? '#1e3a5f' : '#111827',
-                    color: selectedMatch === m.matchNum ? '#60a5fa' : '#94a3b8',
-                    border: `2px solid ${selectedMatch === m.matchNum ? '#60a5fa' : '#1e3a5f'}`,
+                    background: selectedMatch === m.matchNum ? '#003366' : '#ffffff',
+                    color: selectedMatch === m.matchNum ? 'white' : '#888',
+                    border: `2px solid ${selectedMatch === m.matchNum ? '#003366' : '#e2e8f0'}`,
                     borderRadius: '8px',
                     cursor: 'pointer',
                     fontSize: '12px',
@@ -2067,18 +2067,18 @@ export default function Home() {
             <div style={{ marginTop: '8px' }}>
               <span
                 onClick={() => setShowNotes(!showNotes)}
-                style={{ fontSize: '11px', color: '#64748b', cursor: 'pointer', userSelect: 'none' }}
+                style={{ fontSize: '11px', color: '#888', cursor: 'pointer', userSelect: 'none' }}
               >
                 {showNotes ? '\u25BC' : '\u25B6'} 3rd-place notes ({relevantFootnotes.length})
               </span>
               {showNotes && (
-                <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8', lineHeight: '1.8', paddingLeft: '4px' }}>
+                <div style={{ marginTop: '4px', fontSize: '11px', color: '#888', lineHeight: '1.8', paddingLeft: '4px' }}>
                   {relevantFootnotes.map(([matchNum, fn]) => (
                     <div key={matchNum}>
                       <sup style={{ fontWeight: 'bold' }}>{fn.sup}</sup> M{matchNum}: vs 3rd place from Group {fn.pools.join(', ')}
                     </div>
                   ))}
-                  <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '10px', color: '#64748b' }}>
+                  <div style={{ marginTop: '4px', fontStyle: 'italic', fontSize: '10px', color: '#888' }}>
                     8 of 12 third-place finishers advance. Exact assignment depends on which combination of 8 groups
                     produce qualifying 3rd-place teams (FIFA Regulations Annex C, 495 combinations).
                   </div>
@@ -2091,20 +2091,20 @@ export default function Home() {
 
       {/* ── Match info card ── */}
       <div style={{
-        background: isDallas(currentMatch.venue) ? '#1a2744' : '#111827',
+        background: isDallas(currentMatch.venue) ? '#e8f4ff' : '#ffffff',
         padding: '20px', borderRadius: '8px', marginBottom: '25px',
-        borderLeft: isDallas(currentMatch.venue) ? '4px solid #60a5fa' : '4px solid #1e3a5f',
+        borderLeft: isDallas(currentMatch.venue) ? '4px solid #60a5fa' : '4px solid #e2e8f0',
       }}>
-        <div style={{ fontWeight: 'bold', fontSize: '18px', color: isDallas(currentMatch.venue) ? '#60a5fa' : '#e0e6ed' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '18px', color: isDallas(currentMatch.venue) ? '#60a5fa' : '#1a1a1a' }}>
           {currentMatch.title}
         </div>
-        <div style={{ fontSize: '14px', color: '#94a3b8', marginTop: '8px' }}>{currentMatch.date}</div>
-        <div style={{ fontSize: '14px', color: '#94a3b8', marginTop: '4px' }}>{currentMatch.matchup}</div>
-        <div style={{ fontSize: '14px', color: isDallas(currentMatch.venue) ? '#60a5fa' : '#94a3b8', marginTop: '4px', fontWeight: isDallas(currentMatch.venue) ? 'bold' : 'normal' }}>
+        <div style={{ fontSize: '14px', color: '#888', marginTop: '8px' }}>{currentMatch.date}</div>
+        <div style={{ fontSize: '14px', color: '#888', marginTop: '4px' }}>{currentMatch.matchup}</div>
+        <div style={{ fontSize: '14px', color: isDallas(currentMatch.venue) ? '#60a5fa' : '#888', marginTop: '4px', fontWeight: isDallas(currentMatch.venue) ? 'bold' : 'normal' }}>
           {currentMatch.venue}
         </div>
         {currentMatch.type === 'winner_vs_3rd' && currentMatch.thirdPlacePools && (
-          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
             <sup style={{ fontWeight: 'bold' }}>{thirdPlaceFootnotes[currentMatch.matchNum]?.sup}</sup>{' '}
             Opponent will be the 3rd-place team from Group {currentMatch.thirdPlacePools.join(', ')}{' '}
             &mdash; exact assignment depends on which 8 of 12 third-place teams qualify (FIFA Annex C)
@@ -2112,12 +2112,12 @@ export default function Home() {
         )}
         {/* Bracket path for later rounds */}
         {currentMatch.feedsFrom && (
-          <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
-            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
+          <div style={{ marginTop: '10px', padding: '10px', background: '#f5f5f5', borderRadius: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>
               Bracket Path
             </div>
             {getBracketPath(currentMatch).map((line, i) => (
-              <div key={i} style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{line}</div>
+              <div key={i} style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>{line}</div>
             ))}
           </div>
         )}
@@ -2151,23 +2151,23 @@ export default function Home() {
               <h4 style={{ color: '#60a5fa', marginBottom: '10px', fontSize: '16px' }}>
                 Likely 3rd-Place Opponents (from Groups {results.thirdPlacePools.join(', ')})
               </h4>
-              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: '8px', overflow: 'hidden', fontSize: '13px' }}>
                 <thead>
-                  <tr style={{ background: '#1e3a5f', color: '#e0e6ed' }}>
+                  <tr style={{ background: '#f0f4f8', color: '#1a1a1a' }}>
                     <th style={{ padding: '8px', textAlign: 'left' }}>Team</th>
                     <th style={{ padding: '8px', textAlign: 'right' }}>P(Opponent)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.thirdPlaceOpponents.map((t: any, i: number) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #1e293b', background: i % 2 === 0 ? '#111827' : '#0f1623' }}>
-                      <td style={{ padding: '8px', color: '#e0e6ed' }}>
+                    <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f5f5f5' }}>
+                      <td style={{ padding: '8px', color: '#1a1a1a' }}>
                         {flag(t.name)} {t.name}
                         {formatRecord(t.name) && (
-                          <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b' }}>({formatRecord(t.name)})</span>
+                          <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888' }}>({formatRecord(t.name)})</span>
                         )}
                       </td>
-                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#e0e6ed' }}>{t.pct.toFixed(1)}%</td>
+                      <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#1a1a1a' }}>{t.pct.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -2178,8 +2178,8 @@ export default function Home() {
           <button
             onClick={() => setShowDetail(!showDetail)}
             style={{
-              marginTop: '15px', padding: '8px 16px', background: '#111827',
-              color: '#60a5fa', border: '1px solid #1e3a5f', borderRadius: '6px',
+              marginTop: '15px', padding: '8px 16px', background: '#ffffff',
+              color: '#60a5fa', border: '1px solid #e2e8f0', borderRadius: '6px',
               cursor: 'pointer', fontSize: '13px',
             }}
           >
@@ -2233,7 +2233,7 @@ export default function Home() {
             </div>
           )}
 
-          <div style={{ marginTop: '20px', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
             <strong>Model:</strong> Poisson regression (Maher 1982 / Dixon-Coles 1997).{' '}
             &lambda;<sub>A</sub> = exp(&mu; + &beta; &times; (R<sub>A</sub> &minus; R<sub>B</sub>)),{' '}
             where &mu; = ln(1.26) and &beta; = 0.00149 (calibrated to FIFA Elo formula).{' '}
@@ -2277,7 +2277,7 @@ export default function Home() {
             </div>
           )}
 
-          <div style={{ marginTop: '20px', fontSize: '12px', color: '#64748b' }}>
+          <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
             <strong>Model:</strong> Full bracket simulation &mdash; group stages simulated for all feeder matches,
             then knockout results chained through R32 &rarr; {results.round}. Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
             {ratingSource && <> | Ratings: {ratingSource}</>}
@@ -2330,59 +2330,63 @@ export default function Home() {
                 onChange={e => setTeamSearch(e.target.value)}
                 style={{
                   width: '100%', maxWidth: '300px', padding: '8px 12px', marginBottom: '10px',
-                  background: '#111827', border: '1px solid #1e3a5f', borderRadius: '6px',
-                  color: '#e0e6ed', fontSize: '13px', outline: 'none',
+                  background: 'white', border: '1px solid #e2e8f0', borderRadius: '6px',
+                  color: '#1a1a1a', fontSize: '13px', outline: 'none',
                 }}
               />
               <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#111827', borderRadius: '10px', overflow: 'hidden', fontSize: '13px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff', borderRadius: '10px', overflow: 'hidden', fontSize: '13px' }}>
                 <thead>
-                  <tr style={{ background: '#1e3a5f' }}>
-                    <th style={{ padding: '10px', textAlign: 'left', position: 'sticky', left: 0, background: '#1e3a5f', zIndex: 1, color: '#94a3b8' }}></th>
-                    <th style={{ padding: '10px', textAlign: 'left', position: 'sticky', left: 28, background: '#1e3a5f', zIndex: 1, color: '#e0e6ed' }}>Team</th>
-                    <th style={{ padding: '10px', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>Grp</th>
+                  <tr style={{ background: '#f0f4f8' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', position: 'sticky', left: 0, background: '#f0f4f8', zIndex: 1, color: '#888' }}></th>
+                    <th style={{ padding: '10px', textAlign: 'left', position: 'sticky', left: 28, background: '#f0f4f8', zIndex: 1, color: '#1a1a1a' }}>Team</th>
+                    <th style={{ padding: '10px', textAlign: 'center', fontSize: '11px', color: '#888' }}>Grp</th>
                     <th style={{ padding: '10px', textAlign: 'right', color: '#60a5fa' }}>R32</th>
+                    <th style={{ padding: '10px', textAlign: 'right', color: '#6366f1' }}>R16</th>
                     <th style={{ padding: '10px', textAlign: 'right', color: '#818cf8' }}>QF</th>
                     <th style={{ padding: '10px', textAlign: 'right', color: '#f59e0b' }}>SF</th>
+                    <th style={{ padding: '10px', textAlign: 'right', color: '#ef4444' }}>Final</th>
                     <th style={{ padding: '10px', textAlign: 'right', color: '#f97316', fontSize: '12px', fontWeight: 900, letterSpacing: '-0.5px' }}>Champ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sorted.map((t: any, i: number) => {
                     const isFav = favorites.includes(t.name)
-                    const bg = isFav ? '#1a2744' : i % 2 === 0 ? '#111827' : '#0f1623'
+                    const bg = isFav ? '#e8f4ff' : i % 2 === 0 ? '#ffffff' : '#f5f5f5'
                     return (
                     <>
                       <tr
                         key={t.name}
                         onClick={() => setExpandedTeam(expandedTeam === t.name ? null : t.name)}
                         style={{
-                          borderBottom: expandedTeam === t.name ? 'none' : '1px solid #1e293b',
+                          borderBottom: expandedTeam === t.name ? 'none' : '1px solid #e2e8f0',
                           background: bg,
                           cursor: 'pointer',
                         }}
                       >
                         <td style={{ padding: '6px 4px 6px 8px', position: 'sticky', left: 0, background: bg, zIndex: 1, width: '20px' }}>
-                          <span onClick={e => { e.stopPropagation(); toggleFavorite(t.name) }} style={{ cursor: 'pointer', fontSize: '14px', color: isFav ? '#f59e0b' : '#334155' }}>{isFav ? '★' : '☆'}</span>
+                          <span onClick={e => { e.stopPropagation(); toggleFavorite(t.name) }} style={{ cursor: 'pointer', fontSize: '14px', color: isFav ? '#f59e0b' : '#ccc' }}>{isFav ? '★' : '☆'}</span>
                         </td>
-                        <td style={{ padding: '8px 6px', fontWeight: 'bold', position: 'sticky', left: 28, background: bg, zIndex: 1, color: '#e0e6ed' }}>
-                          <span style={{ color: expandedTeam === t.name ? '#60a5fa' : '#94a3b8', marginRight: '5px', fontSize: '9px', display: 'inline-block', transition: 'transform 0.15s', transform: expandedTeam === t.name ? 'rotate(90deg)' : 'none' }}>&#9654;</span>
+                        <td style={{ padding: '8px 6px', fontWeight: 'bold', position: 'sticky', left: 28, background: bg, zIndex: 1, color: '#1a1a1a' }}>
+                          <span style={{ color: expandedTeam === t.name ? '#60a5fa' : '#888', marginRight: '5px', fontSize: '9px', display: 'inline-block', transition: 'transform 0.15s', transform: expandedTeam === t.name ? 'rotate(90deg)' : 'none' }}>&#9654;</span>
                           {flag(t.name)} {t.name}
                           {formatRecord(t.name) && (
-                            <span style={{ marginLeft: '6px', fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
+                            <span style={{ marginLeft: '6px', fontSize: '11px', color: '#888', fontWeight: 'normal' }}>
                               ({formatRecord(t.name)})
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '8px', textAlign: 'center', color: '#64748b', fontSize: '12px' }}>{t.group}</td>
+                        <td style={{ padding: '8px', textAlign: 'center', color: '#888', fontSize: '12px' }}>{t.group}</td>
                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#60a5fa', fontVariantNumeric: 'tabular-nums' }}>{t.R32.total >= 100 ? '100' : t.R32.total >= 99.95 ? '>99.9' : t.R32.total.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#6366f1', fontVariantNumeric: 'tabular-nums' }}>{t.R16.total >= 100 ? '100' : t.R16.total >= 99.95 ? '>99.9' : t.R16.total.toFixed(1)}%</td>
                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#818cf8', fontVariantNumeric: 'tabular-nums' }}>{t.QF.total >= 100 ? '100' : t.QF.total >= 99.95 ? '>99.9' : t.QF.total.toFixed(1)}%</td>
                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>{t.SF.total >= 100 ? '100' : t.SF.total >= 99.95 ? '>99.9' : t.SF.total.toFixed(1)}%</td>
+                        <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>{t.Final.total >= 100 ? '100' : t.Final.total >= 99.95 ? '>99.9' : t.Final.total.toFixed(1)}%</td>
                         <td style={{ padding: '8px', textAlign: 'right', fontWeight: 900, color: '#f97316', fontSize: '15px', fontVariantNumeric: 'tabular-nums' }}>{t.Champion >= 100 ? '100' : t.Champion >= 99.95 ? '>99.9' : t.Champion.toFixed(1)}%</td>
                       </tr>
                       {expandedTeam === t.name && (
-                        <tr key={`${t.name}-detail`} style={{ background: '#0f172a', borderBottom: '2px solid #1e3a5f' }}>
-                          <td colSpan={7} style={{ padding: '12px 16px' }}>
+                        <tr key={`${t.name}-detail`} style={{ background: '#f0f4f8', borderBottom: '2px solid #e2e8f0' }}>
+                          <td colSpan={9} style={{ padding: '12px 16px' }}>
                             {(() => {
                               const matches = getTeamGroupMatches(t.name)
                               if (matches.length === 0) return null
@@ -2396,11 +2400,11 @@ export default function Home() {
                                       const result = groupMatchResult(gm)
                                       const opp = gm.teamA === t.name ? gm.teamB : gm.teamA
                                       return (
-                                        <div key={gm.matchNum} style={{ background: result ? '#1a2332' : '#111827', padding: '8px 10px', borderRadius: '6px', border: `1px solid ${result ? '#2d3748' : '#1e3a5f'}`, fontSize: '12px' }}>
-                                          <div style={{ fontWeight: 'bold', color: '#e0e6ed' }}>
+                                        <div key={gm.matchNum} style={{ background: result ? '#f0f8ff' : '#ffffff', padding: '8px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+                                          <div style={{ fontWeight: 'bold', color: '#1a1a1a' }}>
                                             vs <span onClick={() => navigateToTeam(opp)} style={{ cursor: 'pointer', color: '#60a5fa' }}>{flag(opp)} {opp}</span>
                                           </div>
-                                          <div style={{ color: '#64748b', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
+                                          <div style={{ color: '#888', marginTop: '2px' }}>{venueCity(gm.venue)}</div>
                                           {result ? (() => {
                                             const my = gm.teamA === t.name ? result.scoreA : result.scoreB
                                             const their = gm.teamA === t.name ? result.scoreB : result.scoreA
@@ -2434,22 +2438,22 @@ export default function Home() {
                                 const data = t[rd]
                                 if (!data || data.total === 0) return null
                                 return (
-                                  <div key={rd} style={{ background: '#1a2332', padding: '10px', borderRadius: '6px', border: '1px solid #2d3748' }}>
+                                  <div key={rd} style={{ background: '#f0f8ff', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                                     <div style={{ fontWeight: 'bold', fontSize: '13px', color: roundColor[rd] || '#60a5fa', marginBottom: '6px' }}>
                                       {roundLabel[rd] || rd} &mdash; {data.total.toFixed(1)}%
                                     </div>
                                     {data.venues.map((v: any, vi: number) => {
                                       const matchesHere = allMatches.filter(m => m.round === rd && venueCity(m.venue) === v.venue)
                                       return (
-                                      <div key={vi} style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                                      <div key={vi} style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                           <span>{v.venue}</span>
-                                          <span style={{ fontWeight: 'bold', color: v.venue.includes('Dallas') ? '#60a5fa' : '#e0e6ed' }}>
+                                          <span style={{ fontWeight: 'bold', color: v.venue.includes('Dallas') ? '#60a5fa' : '#1a1a1a' }}>
                                             {v.pct.toFixed(1)}%
                                           </span>
                                         </div>
                                         {matchesHere.length > 0 && (
-                                          <div style={{ fontSize: '10px', color: '#64748b', marginTop: '1px' }}>
+                                          <div style={{ fontSize: '10px', color: '#888', marginTop: '1px' }}>
                                             {matchesHere.map(m => (
                                               <span key={m.matchNum}>
                                                 M{m.matchNum}: {m.date.split('•')[0]?.trim()}
@@ -2474,7 +2478,7 @@ export default function Home() {
               </table>
               </div>
 
-              <div style={{ marginTop: '20px', fontSize: '12px', color: '#64748b' }}>
+              <div style={{ marginTop: '20px', fontSize: '12px', color: '#888' }}>
                 Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
                 {ratingSource && <> | {ratingSource}</>}
               </div>
@@ -2505,11 +2509,11 @@ export default function Home() {
         const groups = Object.keys(groupTeams).sort()
         const hasSim = teamSim != null
         const th = (label: string, w?: string, bg?: string): React.CSSProperties => ({
-          padding: '5px 4px', textAlign: 'center', width: w || '24px', fontSize: '10px', color: '#94a3b8',
+          padding: '5px 4px', textAlign: 'center', width: w || '24px', fontSize: '10px', color: '#888',
           ...(bg ? { background: bg, color: 'white' } : {}),
         })
         const td = (bold?: boolean): React.CSSProperties => ({
-          padding: '4px 4px', textAlign: 'center', fontSize: '12px', color: '#e0e6ed',
+          padding: '4px 4px', textAlign: 'center', fontSize: '12px', color: '#1a1a1a',
           ...(bold ? { fontWeight: 'bold' } : {}),
         })
         const tdPct = (color: string, bold?: boolean): React.CSSProperties => ({
@@ -2528,9 +2532,9 @@ export default function Home() {
                 const groupGames = groupMatches.filter(m => m.group === g)
                 const played = groupGames.filter(gm => groupMatchResult(gm) !== null).length
                 return (
-                  <div key={g} style={{ background: '#111827', borderRadius: '8px', border: '1px solid #1e3a5f', overflow: 'hidden' }}>
+                  <div key={g} style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                     <div style={{
-                      background: '#1e3a5f', color: '#e0e6ed', padding: '8px 12px',
+                      background: '#003366', color: 'white', padding: '8px 12px',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     }}>
                       <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Group {g}</span>
@@ -2539,8 +2543,8 @@ export default function Home() {
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '360px' }}>
                         <thead>
-                          <tr style={{ background: '#0f1623', borderBottom: '1px solid #1e293b' }}>
-                            <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px', color: '#94a3b8' }}>Team</th>
+                          <tr style={{ background: '#f5f5f5', borderBottom: '1px solid #e2e8f0' }}>
+                            <th style={{ padding: '5px 8px', textAlign: 'left', fontSize: '10px', color: '#888' }}>Team</th>
                             <th style={th('Pts', '26px')}>Pts</th>
                             <th style={th('W')}>W</th>
                             <th style={th('D')}>D</th>
@@ -2551,7 +2555,7 @@ export default function Home() {
                             {hasSim && <>
                               <th style={th('1st', '38px', '#166534')}>1st</th>
                               <th style={th('2nd', '38px', '#14532d')}>2nd</th>
-                              <th style={th('R32', '38px', '#1e3a5f')}>R32</th>
+                              <th style={th('R32', '38px', '#003366')}>R32</th>
                             </>}
                           </tr>
                         </thead>
@@ -2561,13 +2565,13 @@ export default function Home() {
                             const isElim = hasSim && t.pctR32 !== null && t.pctR32 < 1
                             return (
                               <tr key={t.name} style={{
-                                borderBottom: '1px solid #1e293b',
-                                background: isElim ? 'rgba(239,68,68,0.08)' : i < 2 ? 'rgba(34,197,94,0.08)' : i === 2 ? 'rgba(234,179,8,0.08)' : '#111827',
+                                borderBottom: '1px solid #e2e8f0',
+                                background: isElim ? 'rgba(239,68,68,0.08)' : i < 2 ? 'rgba(34,197,94,0.08)' : i === 2 ? 'rgba(234,179,8,0.08)' : '#ffffff',
                                 opacity: isElim ? 0.6 : 1,
                               }}>
-                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', color: '#e0e6ed' }}>
-                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(t.name)} {t.name}</span>
-                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({t.w}-{t.d}-{t.l})</span>}
+                                <td style={{ padding: '4px 8px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', color: '#1a1a1a' }}>
+                                  <span onClick={() => navigateToTeam(t.name)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{flag(t.name)} {t.name}</span>
+                                  {t.played > 0 && <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal', marginLeft: '4px' }}>({t.w}-{t.d}-{t.l})</span>}
                                 </td>
                                 <td style={td(true)}>{t.pts}</td>
                                 <td style={td()}>{t.w}</td>
@@ -2593,11 +2597,11 @@ export default function Home() {
                         </tbody>
                       </table>
                     </div>
-                    <div style={{ padding: '6px 8px', background: '#0f1623', borderTop: '1px solid #1e293b' }}>
+                    <div style={{ padding: '6px 8px', background: '#f5f5f5', borderTop: '1px solid #e2e8f0' }}>
                       {groupGames.map(gm => {
                         const result = groupMatchResult(gm)
                         const tLink = (name: string, bold: boolean) => (
-                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px', color: '#e0e6ed' }}>{flag(name)} {name}</span>
+                          <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px', color: '#1a1a1a' }}>{flag(name)} {name}</span>
                         )
                         if (result) return (
                           <div key={gm.matchNum} style={{ fontSize: '11px', padding: '2px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -2608,11 +2612,11 @@ export default function Home() {
                         )
                         const odds = getMatchOdds(gm.teamA, gm.teamB)
                         return (
-                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '4px 0', borderTop: '1px solid #1e293b' }}>
+                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '4px 0', borderTop: '1px solid #e2e8f0' }}>
                             <div style={{ marginBottom: '4px' }}>
                               <OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} />
                             </div>
-                            <div style={{ textAlign: 'center', color: '#64748b', fontSize: '10px' }}>
+                            <div style={{ textAlign: 'center', color: '#888', fontSize: '10px' }}>
                               {venueCity(gm.venue)} &bull; {gm.date.split('•')[0]?.trim()}
                               {' · '}<a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
                             </div>
@@ -2624,7 +2628,7 @@ export default function Home() {
                 )
               })}
             </div>
-            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '12px' }}>
+            <div style={{ fontSize: '11px', color: '#888', marginTop: '12px' }}>
               Green = top 2 (auto-qualify). Yellow = 3rd (8 of 12 advance). Red tint = eliminated.
               {' '}1st/2nd/R32 columns from 10,000 MC simulations.
               {ratingSource && <> | Ratings: {ratingSource}</>}
@@ -2708,14 +2712,14 @@ export default function Home() {
               onClick={rawName ? (e: any) => { e.stopPropagation(); navigateToTeam(rawName) } : undefined}
               style={{
                 padding: '2px 5px', fontSize: '10px',
-                background: green ? 'rgba(34,197,94,0.15)' : '#1a2332',
+                background: green ? 'rgba(34,197,94,0.15)' : '#f0f8ff',
                 fontWeight: green ? 'bold' : 'normal',
-                color: green ? '#2ecc71' : '#e0e6ed',
+                color: green ? '#2ecc71' : '#1a1a1a',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 lineHeight: '15px',
                 cursor: rawName ? 'pointer' : 'default',
                 textDecoration: rawName ? 'underline' : 'none',
-                textDecorationColor: '#475569',
+                textDecorationColor: '#ccc',
                 textUnderlineOffset: '2px',
               }}
             >
@@ -2725,8 +2729,8 @@ export default function Home() {
 
           return (
             <div style={{
-              border: '1px solid #2d3748', borderRadius: '3px', overflow: 'hidden',
-              width: SLOT_W, background: '#111827', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              border: '1px solid #e2e8f0', borderRadius: '3px', overflow: 'hidden',
+              width: SLOT_W, background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
             }}>
               <div style={{
                 padding: '1px 4px', fontSize: '8px', fontWeight: 'bold',
@@ -2734,7 +2738,7 @@ export default function Home() {
               }}>
                 M{matchNum}
               </div>
-              <div style={{ borderBottom: '1px solid #2d3748' }}>
+              <div style={{ borderBottom: '1px solid #e2e8f0' }}>
                 {teamCell(topText, topGreen, topRawName)}
               </div>
               {teamCell(botText, botGreen, botRawName)}
@@ -2768,10 +2772,10 @@ export default function Home() {
                             preserveAspectRatio="none"
                             style={{ display: 'block', width: '100%', height: '100%' }}
                           >
-                            <line x1="0" y1="25" x2={CONN_W / 2} y2="25" stroke="#475569" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                            <line x1={CONN_W / 2} y1="25" x2={CONN_W / 2} y2="75" stroke="#475569" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                            <line x1={CONN_W / 2} y1="50" x2={CONN_W} y2="50" stroke="#475569" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-                            <line x1="0" y1="75" x2={CONN_W / 2} y2="75" stroke="#475569" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1="0" y1="25" x2={CONN_W / 2} y2="25" stroke="#ccc" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1={CONN_W / 2} y1="25" x2={CONN_W / 2} y2="75" stroke="#ccc" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1={CONN_W / 2} y1="50" x2={CONN_W} y2="50" stroke="#ccc" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                            <line x1="0" y1="75" x2={CONN_W / 2} y2="75" stroke="#ccc" strokeWidth="2" vectorEffect="non-scaling-stroke" />
                           </svg>
                         </div>
                       ))}
@@ -2799,7 +2803,7 @@ export default function Home() {
                     const els = []
                     if (i > 0) els.push(<div key={`sp-${i}`} style={{ width: CONN_W }} />)
                     els.push(
-                      <div key={`hdr-${i}`} style={{ width: SLOT_W, textAlign: 'center', fontSize: 10, fontWeight: 'bold', color: '#94a3b8' }}>
+                      <div key={`hdr-${i}`} style={{ width: SLOT_W, textAlign: 'center', fontSize: 10, fontWeight: 'bold', color: '#888' }}>
                         {label}
                       </div>
                     )
@@ -2828,7 +2832,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
               Tap any R32 matchup for detailed probabilities. Green = clinched ({'≥'}90%).
               {ratingSource && <> | Ratings: {ratingSource}</>}
               {resultsSource && <> | Results: {resultsSource === 'espn-live' ? 'Live (ESPN)' : resultsSource}</>}
@@ -2847,7 +2851,7 @@ export default function Home() {
               onChange={e => setSelectedVenue(e.target.value)}
               style={{
                 padding: '10px 16px', fontSize: '15px', borderRadius: '6px',
-                border: '2px solid #1e3a5f', background: '#111827', color: '#e0e6ed',
+                border: '2px solid #e2e8f0', background: '#ffffff', color: '#1a1a1a',
                 fontWeight: 'bold', cursor: 'pointer', width: '100%', maxWidth: '450px',
               }}
             >
@@ -2872,7 +2876,7 @@ export default function Home() {
                 <button
                   onClick={() => setVenueGroupExpanded(!venueGroupExpanded)}
                   style={{
-                    width: '100%', padding: '12px 16px', background: '#166534', color: '#e0e6ed',
+                    width: '100%', padding: '12px 16px', background: '#166534', color: 'white',
                     border: 'none', borderRadius: venueGroupExpanded ? '8px 8px 0 0' : '8px',
                     cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -2882,15 +2886,15 @@ export default function Home() {
                   <span style={{ fontSize: '14px' }}>{venueGroupExpanded ? '▼' : '▶'}</span>
                 </button>
                 {venueGroupExpanded && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px', background: '#0f1623', borderRadius: '0 0 8px 8px', padding: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '12px', background: '#f5f5f5', borderRadius: '0 0 8px 8px', padding: '12px' }}>
                     {venueGroupGames.map(gm => {
                       const result = groupMatchResult(gm)
                       return (
                         <div key={gm.matchNum} style={{
-                          background: '#111827', borderRadius: '8px', border: '1px solid #2d3748', overflow: 'hidden',
+                          background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden',
                         }}>
                           <div style={{
-                            background: '#14532d', color: '#e0e6ed', padding: '10px 16px',
+                            background: '#14532d', color: 'white', padding: '10px 16px',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                           }}>
                             <div>
@@ -2898,22 +2902,22 @@ export default function Home() {
                             </div>
                             {result && (
                               <span style={{
-                                background: '#f59e0b', color: '#111827', padding: '2px 8px', borderRadius: '4px',
+                                background: '#f59e0b', color: '#1a1a1a', padding: '2px 8px', borderRadius: '4px',
                                 fontSize: '11px', fontWeight: 'bold',
                               }}>FINAL</span>
                             )}
                           </div>
                           <div style={{ padding: '12px 16px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold', color: '#e0e6ed' }}>
-                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamA)} {gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', fontSize: '16px', fontWeight: 'bold', color: '#1a1a1a' }}>
+                              <span onClick={() => navigateToTeam(gm.teamA)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{flag(gm.teamA)} {gm.teamA}{formatRecord(gm.teamA) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamA)})</span> : ''}</span>
                               {result ? (
                                 <span style={{ color: '#2ecc71', fontSize: '20px' }}>{result.scoreA} – {result.scoreB}</span>
                               ) : (
-                                <span style={{ color: '#64748b', fontSize: '14px' }}>vs</span>
+                                <span style={{ color: '#888', fontSize: '14px' }}>vs</span>
                               )}
-                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#475569', textUnderlineOffset: '2px' }}>{flag(gm.teamB)} {gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#64748b' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
+                              <span onClick={() => navigateToTeam(gm.teamB)} style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px' }}>{flag(gm.teamB)} {gm.teamB}{formatRecord(gm.teamB) ? <span style={{ fontSize: '11px', fontWeight: 'normal', color: '#888' }}> ({formatRecord(gm.teamB)})</span> : ''}</span>
                             </div>
-                            <div style={{ textAlign: 'center', fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                            <div style={{ textAlign: 'center', fontSize: '12px', color: '#888', marginTop: '6px' }}>
                               {gm.date}
                             </div>
                             {!result && (() => {
@@ -2946,7 +2950,7 @@ export default function Home() {
                 <button
                   onClick={() => setVenueKnockoutExpanded(!venueKnockoutExpanded)}
                   style={{
-                    width: '100%', padding: '12px 16px', background: '#1e3a5f', color: '#e0e6ed',
+                    width: '100%', padding: '12px 16px', background: '#003366', color: 'white',
                     border: 'none', borderRadius: venueKnockoutExpanded ? '8px 8px 0 0' : '8px',
                     cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', textAlign: 'left',
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -2971,7 +2975,7 @@ export default function Home() {
                           const rc = roundColor[match.round] || '#003366'
                           return (
                             <div key={match.matchNum} style={{
-                              background: '#111827', borderRadius: '8px', border: '1px solid #2d3748',
+                              background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0',
                               overflow: 'hidden',
                             }}>
                               <div style={{
@@ -2986,35 +2990,35 @@ export default function Home() {
                               </div>
                               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
                                 {/* Side A */}
-                                <div style={{ borderRight: '2px solid #1e293b' }}>
-                                  <div style={{ padding: '8px 12px', background: '#0f1623', fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textAlign: 'center' }}>
+                                <div style={{ borderRight: '2px solid #e2e8f0' }}>
+                                  <div style={{ padding: '8px 12px', background: '#f5f5f5', fontSize: '11px', fontWeight: 'bold', color: '#888', textAlign: 'center' }}>
                                     {match.sideALabel}
                                   </div>
                                   {visibleA.map((t: any) => (
-                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
+                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#1a1a1a' }}>{flag(t.name)} {t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
                                   {hiddenA > 0 && (
-                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
                                       +{hiddenA} other
                                     </div>
                                   )}
                                 </div>
                                 {/* Side B */}
                                 <div>
-                                  <div style={{ padding: '8px 12px', background: '#0f1623', fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textAlign: 'center' }}>
+                                  <div style={{ padding: '8px 12px', background: '#f5f5f5', fontSize: '11px', fontWeight: 'bold', color: '#888', textAlign: 'center' }}>
                                     {match.sideBLabel}
                                   </div>
                                   {visibleB.map((t: any) => (
-                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#e0e6ed' }}>{flag(t.name)} {t.name}</span>
+                                    <div key={t.name} style={{ padding: '5px 12px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                                      <span style={{ fontWeight: t.pct >= 10 ? 'bold' : 'normal', color: '#1a1a1a' }}>{flag(t.name)} {t.name}</span>
                                       <span style={{ fontWeight: 'bold', color: rc }}>{t.pct.toFixed(1)}%</span>
                                     </div>
                                   ))}
                                   {hiddenB > 0 && (
-                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                                    <div style={{ padding: '4px 12px', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
                                       +{hiddenB} other
                                     </div>
                                   )}
@@ -3025,7 +3029,7 @@ export default function Home() {
                         })}
                       </div>
                     ) : (
-                      <div style={{ padding: '12px', color: '#64748b', fontStyle: 'italic' }}>
+                      <div style={{ padding: '12px', color: '#888', fontStyle: 'italic' }}>
                         No knockout matches at this venue.
                       </div>
                     )}
@@ -3037,7 +3041,7 @@ export default function Home() {
 
           {venueViewResults && (
             <>
-              <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748b' }}>
+              <div style={{ marginTop: '10px', fontSize: '12px', color: '#888' }}>
                 <strong>Model:</strong> Full tournament bracket simulation &mdash; all 12 groups + R32 through Final
                 with proper 3rd-place assignment (backtracking). Poisson regression (Dixon-Coles 1997). 10,000 MC iterations.
                 {ratingSource && <> | Ratings: {ratingSource}</>}
@@ -3060,7 +3064,7 @@ export default function Home() {
       )}
 
       {/* ── Footer ── */}
-      <div style={{ marginTop: '30px', paddingTop: '15px', borderTop: '1px solid #1e293b', fontSize: '12px', color: '#64748b' }}>
+      <div style={{ marginTop: '30px', paddingTop: '15px', borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#888' }}>
         Poisson regression model (Maher 1982, Dixon &amp; Coles 1997) with FIFA Elo-based rankings.
         {ratingSource && <> | Source: {ratingSource}</>}
       </div>
