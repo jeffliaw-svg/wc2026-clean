@@ -2597,31 +2597,44 @@ export default function Home() {
                       </table>
                     </div>
                     <div style={{ padding: '6px 8px', background: '#f5f5f5', borderTop: '1px solid #e2e8f0' }}>
-                      {groupGames.map(gm => {
-                        const result = groupMatchResult(gm)
+                      {(() => {
+                        const completed = groupGames.filter(gm => groupMatchResult(gm) !== null)
+                        const upcoming = groupGames.filter(gm => groupMatchResult(gm) === null)
                         const tLink = (name: string, bold: boolean) => (
                           <span onClick={() => navigateToTeam(name)} style={{ fontWeight: bold ? 'bold' : 'normal', cursor: 'pointer', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: '2px', color: '#1a1a1a' }}>{flag(name)} {name}</span>
                         )
-                        if (result) return (
-                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '2px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            <span style={{ flex: 1, textAlign: 'right' }}>{tLink(gm.teamA, result.scoreA > result.scoreB)}</span>
-                            <strong style={{ minWidth: '30px', textAlign: 'center', color: '#2ecc71' }}>{result.scoreA}–{result.scoreB}</strong>
-                            <span style={{ flex: 1, textAlign: 'left' }}>{tLink(gm.teamB, result.scoreB > result.scoreA)}</span>
-                          </div>
-                        )
-                        const odds = getMatchOdds(gm.teamA, gm.teamB)
-                        return (
-                          <div key={gm.matchNum} style={{ fontSize: '11px', padding: '4px 0', borderTop: '1px solid #e2e8f0' }}>
-                            <div style={{ marginBottom: '4px' }}>
-                              <OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} />
+                        return <>
+                          {completed.map(gm => {
+                            const result = groupMatchResult(gm)!
+                            return (
+                              <div key={gm.matchNum} style={{ fontSize: '11px', padding: '2px 0', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <span style={{ flex: 1, textAlign: 'right' }}>{tLink(gm.teamA, result.scoreA > result.scoreB)}</span>
+                                <strong style={{ minWidth: '30px', textAlign: 'center', color: '#2ecc71' }}>{result.scoreA}–{result.scoreB}</strong>
+                                <span style={{ flex: 1, textAlign: 'left' }}>{tLink(gm.teamB, result.scoreB > result.scoreA)}</span>
+                              </div>
+                            )
+                          })}
+                          {upcoming.length > 0 && (
+                            <div style={{ borderTop: '2px solid #e2e8f0', marginTop: '4px', paddingTop: '4px' }}>
+                              <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold', marginBottom: '4px' }}>Upcoming</div>
+                              {upcoming.map(gm => {
+                                const odds = getMatchOdds(gm.teamA, gm.teamB)
+                                return (
+                                  <div key={gm.matchNum} style={{ fontSize: '11px', padding: '3px 0' }}>
+                                    <div style={{ marginBottom: '3px' }}>
+                                      <OddsBar teamA={gm.teamA} teamB={gm.teamB} pA={odds.pA} pDraw={odds.pDraw} pB={odds.pB} />
+                                    </div>
+                                    <div style={{ textAlign: 'center', color: '#888', fontSize: '10px' }}>
+                                      {venueCity(gm.venue)} &bull; {gm.date.split('•')[1]?.trim()}
+                                      {' · '}<a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
-                            <div style={{ textAlign: 'center', color: '#888', fontSize: '10px' }}>
-                              {venueCity(gm.venue)} &bull; {gm.date.split('•')[0]?.trim()}
-                              {' · '}<a href={stubhubUrl(gm.matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tickets</a>
-                            </div>
-                          </div>
-                        )
-                      })}
+                          )}
+                        </>
+                      })()}
                     </div>
                   </div>
                 )
@@ -2726,21 +2739,32 @@ export default function Home() {
             </div>
           )
 
+          const dateShort = m.date.split('•')[0]?.trim().replace(/,\s*$/, '') || ''
+          const timeShort = m.date.split('•')[1]?.trim() || ''
+          const city = venueCity(m.venue)
+
           return (
-            <div style={{
-              border: '1px solid #e2e8f0', borderRadius: '3px', overflow: 'hidden',
-              width: SLOT_W, background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            }}>
+            <div style={{ width: SLOT_W }}>
               <div style={{
-                padding: '1px 4px', fontSize: '8px', fontWeight: 'bold',
-                background: rc, color: 'white', lineHeight: '13px',
+                border: '1px solid #e2e8f0', borderRadius: '3px', overflow: 'hidden',
+                background: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
               }}>
-                M{matchNum}
+                <div style={{
+                  padding: '1px 4px', fontSize: '8px', fontWeight: 'bold',
+                  background: rc, color: 'white', lineHeight: '13px',
+                }}>
+                  M{matchNum}
+                </div>
+                <div style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  {teamCell(topText, topGreen, topRawName)}
+                </div>
+                {teamCell(botText, botGreen, botRawName)}
               </div>
-              <div style={{ borderBottom: '1px solid #e2e8f0' }}>
-                {teamCell(topText, topGreen, topRawName)}
+              <div style={{ fontSize: '7px', color: '#888', lineHeight: '10px', marginTop: '1px', textAlign: 'center' }}>
+                {city} &bull; {dateShort}
+                {timeShort && <> &bull; {timeShort}</>}
+                {' '}<a href={stubhubUrl(matchNum)} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none', fontWeight: 'bold' }}>Tix</a>
               </div>
-              {teamCell(botText, botGreen, botRawName)}
             </div>
           )
         }
