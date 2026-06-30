@@ -44,9 +44,14 @@ function normalizeTeamName(name: string): string {
   return ESPN_NAME_MAP[name] || name
 }
 
-type MatchResult = { teamA: string; teamB: string; scoreA: number; scoreB: number }
+type MatchResult = { teamA: string; teamB: string; scoreA: number; scoreB: number; winner?: string }
 
-async function fetchESPNResults(): Promise<Record<string, MatchResult[]> | null> {
+type ESPNFetchResult = {
+  groupResults: Record<string, MatchResult[]>
+  knockoutResults: MatchResult[]
+} | null
+
+async function fetchESPNResults(): Promise<ESPNFetchResult> {
   try {
     const url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=200&dates=20260611-20260720'
     const resp = await fetch(url, {
@@ -58,7 +63,8 @@ async function fetchESPNResults(): Promise<Record<string, MatchResult[]> | null>
     const events = data?.events
     if (!Array.isArray(events)) return null
 
-    const results: Record<string, MatchResult[]> = {}
+    const groupResults: Record<string, MatchResult[]> = {}
+    const knockoutResults: MatchResult[] = []
 
     for (const event of events) {
       const comp = event?.competitions?.[0]
@@ -80,19 +86,35 @@ async function fetchESPNResults(): Promise<Record<string, MatchResult[]> | null>
 
       if (!teamA || !teamB || isNaN(scoreA) || isNaN(scoreB)) continue
 
-      const group = TEAM_GROUPS[teamA] || TEAM_GROUPS[teamB]
-      if (!group) continue
+      const groupA = TEAM_GROUPS[teamA]
+      const groupB = TEAM_GROUPS[teamB]
 
-      if (!results[group]) results[group] = []
-      const alreadyExists = results[group].some(r =>
-        (r.teamA === teamA && r.teamB === teamB) || (r.teamA === teamB && r.teamB === teamA)
-      )
-      if (!alreadyExists) {
-        results[group].push({ teamA, teamB, scoreA, scoreB })
+      if (groupA && groupB && groupA === groupB) {
+        const group = groupA
+        if (!groupResults[group]) groupResults[group] = []
+        const alreadyExists = groupResults[group].some(r =>
+          (r.teamA === teamA && r.teamB === teamB) || (r.teamA === teamB && r.teamB === teamA)
+        )
+        if (!alreadyExists) {
+          groupResults[group].push({ teamA, teamB, scoreA, scoreB })
+        }
+      } else if (groupA && groupB) {
+        const alreadyExists = knockoutResults.some(r =>
+          (r.teamA === teamA && r.teamB === teamB) || (r.teamA === teamB && r.teamB === teamA)
+        )
+        if (!alreadyExists) {
+          // Determine winner — check ESPN winner field for penalty shootouts
+          const homeWon = home?.winner === true
+          const awayWon = away?.winner === true
+          const winner = homeWon ? teamA : awayWon ? teamB : (scoreA > scoreB ? teamA : scoreB > scoreA ? teamB : undefined)
+          knockoutResults.push({ teamA, teamB, scoreA, scoreB, winner })
+        }
       }
     }
 
-    return Object.keys(results).length > 0 ? results : null
+    const hasGroup = Object.keys(groupResults).length > 0
+    const hasKnockout = knockoutResults.length > 0
+    return (hasGroup || hasKnockout) ? { groupResults, knockoutResults } : null
   } catch {
     return null
   }
@@ -176,14 +198,16 @@ function mergeResults(base: Record<string, MatchResult[]>, overlay: Record<strin
 }
 
 export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
-  const liveResults = await fetchESPNResults()
-  const results = liveResults ? mergeResults(FALLBACK_RESULTS, liveResults) : FALLBACK_RESULTS
-  const source = liveResults ? 'espn-live' : 'fallback'
+  const liveData = await fetchESPNResults()
+  const results = liveData ? mergeResults(FALLBACK_RESULTS, liveData.groupResults) : FALLBACK_RESULTS
+  const knockoutResults = liveData?.knockoutResults || []
+  const source = liveData ? 'espn-live' : 'fallback'
 
   res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=60')
   res.status(200).json({
     success: true,
     results,
+    knockoutResults,
     source,
     fetchedAt: new Date().toISOString(),
   })

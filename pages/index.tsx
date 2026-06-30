@@ -671,6 +671,7 @@ export default function Home() {
   const [liveResultsLoaded, setLiveResultsLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null)
+  const [knockoutResults, setKnockoutResults] = useState<{ teamA: string; teamB: string; scoreA: number; scoreB: number; winner?: string }[]>([])
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1322,6 +1323,21 @@ export default function Home() {
           bt(0)
         }
 
+        // Lookup actual knockout result for a matchup
+        const findKnockoutResult = (nameA: string, nameB: string) =>
+          knockoutResults.find(r =>
+            (r.teamA === nameA && r.teamB === nameB) || (r.teamA === nameB && r.teamB === nameA)
+          )
+        const resolveKnockout = (tA: { name: string; rating: number }, tB: { name: string; rating: number }) => {
+          const actual = findKnockoutResult(tA.name, tB.name)
+          if (actual) {
+            const winnerName = actual.winner || (actual.scoreA > actual.scoreB ? actual.teamA : actual.scoreB > actual.scoreA ? actual.teamB : null)
+            if (winnerName) return winnerName === tA.name ? tA : tB
+          }
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          return w === 'A' ? tA : tB
+        }
+
         // 4. Determine R32 participants and simulate
         const winners: Record<number, { name: string; rating: number }> = {}
         for (const m of r32List) {
@@ -1337,8 +1353,7 @@ export default function Home() {
           const city = venueCity(m.venue)
           tracker[tA.name].R32[city] = (tracker[tA.name].R32[city] || 0) + 1
           tracker[tB.name].R32[city] = (tracker[tB.name].R32[city] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          winners[m.matchNum] = resolveKnockout(tA, tB)
         }
 
         // 5. R16
@@ -1347,8 +1362,7 @@ export default function Home() {
           const city = venueCity(m.venue)
           tracker[tA.name].R16[city] = (tracker[tA.name].R16[city] || 0) + 1
           tracker[tB.name].R16[city] = (tracker[tB.name].R16[city] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          winners[m.matchNum] = resolveKnockout(tA, tB)
         }
 
         // 6. QF
@@ -1357,8 +1371,7 @@ export default function Home() {
           const city = venueCity(m.venue)
           tracker[tA.name].QF[city] = (tracker[tA.name].QF[city] || 0) + 1
           tracker[tB.name].QF[city] = (tracker[tB.name].QF[city] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          winners[m.matchNum] = resolveKnockout(tA, tB)
         }
 
         // 7. SF
@@ -1367,8 +1380,7 @@ export default function Home() {
           const city = venueCity(m.venue)
           tracker[tA.name].SF[city] = (tracker[tA.name].SF[city] || 0) + 1
           tracker[tB.name].SF[city] = (tracker[tB.name].SF[city] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          winners[m.matchNum] = resolveKnockout(tA, tB)
         }
 
         // 8. Final
@@ -1377,8 +1389,7 @@ export default function Home() {
           const city = venueCity(finalMatch.venue)
           tracker[tA.name].Final[city] = (tracker[tA.name].Final[city] || 0) + 1
           tracker[tB.name].Final[city] = (tracker[tB.name].Final[city] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          const champ = w === 'A' ? tA : tB
+          const champ = resolveKnockout(tA, tB)
           tracker[champ.name].Champion++
         }
       }
@@ -1509,6 +1520,21 @@ export default function Home() {
           bt(0)
         }
 
+        // Lookup actual knockout result
+        const findKOResult = (nameA: string, nameB: string) =>
+          knockoutResults.find(r =>
+            (r.teamA === nameA && r.teamB === nameB) || (r.teamA === nameB && r.teamB === nameA)
+          )
+        const resolveKO = (tA: { name: string; rating: number }, tB: { name: string; rating: number }): [{ name: string; rating: number }, { name: string; rating: number }] => {
+          const actual = findKOResult(tA.name, tB.name)
+          if (actual) {
+            const winnerName = actual.winner || (actual.scoreA > actual.scoreB ? actual.teamA : actual.scoreB > actual.scoreA ? actual.teamB : null)
+            if (winnerName) return winnerName === tA.name ? [tA, tB] : [tB, tA]
+          }
+          const w = simulateKnockoutMatch(tA.rating, tB.rating)
+          return w === 'A' ? [tA, tB] : [tB, tA]
+        }
+
         // 4. R32
         const winners: Record<number, { name: string; rating: number }> = {}
         for (const m of r32List) {
@@ -1523,8 +1549,8 @@ export default function Home() {
           }
           matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
           matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          const [winner] = resolveKO(tA, tB)
+          winners[m.matchNum] = winner
         }
 
         // 5. R16
@@ -1532,8 +1558,8 @@ export default function Home() {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
           matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
           matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          const [winner] = resolveKO(tA, tB)
+          winners[m.matchNum] = winner
         }
 
         // 6. QF
@@ -1541,8 +1567,8 @@ export default function Home() {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
           matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
           matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
+          const [winner] = resolveKO(tA, tB)
+          winners[m.matchNum] = winner
         }
 
         // 7. SF (also track losers for 3rd place match)
@@ -1551,9 +1577,9 @@ export default function Home() {
           const tA = winners[m.feedsFrom![0]], tB = winners[m.feedsFrom![1]]
           matchSideA[m.matchNum][tA.name] = (matchSideA[m.matchNum][tA.name] || 0) + 1
           matchSideB[m.matchNum][tB.name] = (matchSideB[m.matchNum][tB.name] || 0) + 1
-          const w = simulateKnockoutMatch(tA.rating, tB.rating)
-          winners[m.matchNum] = w === 'A' ? tA : tB
-          losers[m.matchNum] = w === 'A' ? tB : tA
+          const [winner, loser] = resolveKO(tA, tB)
+          winners[m.matchNum] = winner
+          losers[m.matchNum] = loser
         }
 
         // 8. 3rd Place
@@ -1767,6 +1793,10 @@ export default function Home() {
                 changed = true
               }
             }
+          }
+          if (Array.isArray(data.knockoutResults) && data.knockoutResults.length > 0) {
+            setKnockoutResults(data.knockoutResults)
+            changed = true
           }
           setResultsSource(data.source || 'live')
           setLiveResultsLoaded(true)
