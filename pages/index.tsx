@@ -669,6 +669,8 @@ export default function Home() {
   const hasAutoRunVenue = useRef(false)
   const [resultsSource, setResultsSource] = useState<string>('')
   const [liveResultsLoaded, setLiveResultsLoaded] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null)
 
   const roundMatches = allMatches.filter(m => m.round === selectedRound)
   const currentMatch = allMatches.find(m => m.matchNum === selectedMatch)!
@@ -1740,10 +1742,11 @@ export default function Home() {
     </div>
   )
 
-  // ─── Fetch live results on mount + auto-refresh every 60s ────
+  // ─── Fetch live results on mount + auto-refresh every 10 min ────
+  const fetchResultsRef = useRef<(opts?: { manual?: boolean }) => void>(() => {})
   useEffect(() => {
     let cancelled = false
-    const fetchResults = () => {
+    const fetchResults = (opts?: { manual?: boolean }) => {
       fetch('/api/results')
         .then(r => r.json())
         .then(data => {
@@ -1767,9 +1770,12 @@ export default function Home() {
           }
           setResultsSource(data.source || 'live')
           setLiveResultsLoaded(true)
-          if (changed || !liveResultsLoaded) {
+          if (changed || !liveResultsLoaded || opts?.manual) {
             hasAutoRunTeam.current = false
             hasAutoRunVenue.current = false
+          }
+          if (opts?.manual) {
+            setLastRefreshTime(new Date().toLocaleTimeString())
           }
         })
         .catch(() => {
@@ -1778,11 +1784,29 @@ export default function Home() {
             setLiveResultsLoaded(true)
           }
         })
+        .finally(() => {
+          if (opts?.manual) setRefreshing(false)
+        })
     }
+    fetchResultsRef.current = fetchResults
     fetchResults()
-    const interval = setInterval(fetchResults, 600000)
+    const interval = setInterval(() => fetchResults(), 600000)
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
+
+  const handleManualRefresh = async () => {
+    if (refreshing || calculating) return
+    setRefreshing(true)
+    fetchResultsRef.current({ manual: true })
+    await new Promise(resolve => setTimeout(resolve, 500))
+    if (viewMode === 'team' || viewMode === 'bracket' || viewMode === 'standings') {
+      runTeamSimulation()
+    } else if (viewMode === 'venue') {
+      runVenueSimulation()
+    } else if (viewMode === 'match') {
+      runSimulation()
+    }
+  }
 
   const stubhubEventIds: Record<number, number> = {
     4:153020709, 5:153020611, 9:153020800, 10:153022356,
@@ -1956,6 +1980,22 @@ export default function Home() {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* ── Refresh button ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', gap: '10px' }}>
+        <button
+          onClick={handleManualRefresh}
+          disabled={refreshing || calculating}
+          style={{
+            padding: '8px 20px', fontSize: '13px', fontWeight: 'bold', cursor: (refreshing || calculating) ? 'default' : 'pointer',
+            background: (refreshing || calculating) ? '#e2e8f0' : '#003366', color: (refreshing || calculating) ? '#999' : 'white',
+            border: 'none', borderRadius: '6px',
+          }}
+        >
+          {refreshing ? 'Refreshing...' : calculating ? 'Simulating...' : 'Refresh Results & Re-run Simulation'}
+        </button>
+        {lastRefreshTime && <span style={{ fontSize: '11px', color: '#888' }}>Last refreshed: {lastRefreshTime}</span>}
       </div>
 
       {/* ═══════════════════ ROUND VIEW ═══════════════════ */}
